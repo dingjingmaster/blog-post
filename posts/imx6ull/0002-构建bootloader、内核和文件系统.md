@@ -3,7 +3,7 @@ title: "构建bootloader、内核和文件系统"
 date: 2022-03-09T13:39:38+08:00
 tags: ['linux', 'imx6ull']
 categories: ['linux']
-draft: false
+draft: true
 ---
 
 ## 准备环境
