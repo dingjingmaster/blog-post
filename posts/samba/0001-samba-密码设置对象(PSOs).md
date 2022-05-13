@@ -3,7 +3,7 @@ title: "Samba 密码设置对象(PSOs)"
 date: 2022-05-13T09:34:29+08:00
 tags: ['samba', 'PSOs', 'PSO']
 categories: ['samba']
-draft: true
+draft: false
 ---
 
 ## Samab密码设置对象
