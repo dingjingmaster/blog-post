@@ -1,7 +1,7 @@
 ---
-title: "0000 Linux内核文件系统"
+title: "Linux内核文件系统"
 date: 2022-05-18T11:14:55+08:00
-tags: ['linux']
+tags: ['linux', '文件系统', 'filesystem']
 categories: ['linux']
 draft: false
 ---
