@@ -1,7 +1,7 @@
 ---
 title: "git fetch与pull区别"
 date: 2022-05-31T09:40:03+08:00
-tags: ['git', 'fetch', 'pull']
+tags: ['git', 'git fetch', 'git pull']
 categories: ['git']
 draft: false
 ---
