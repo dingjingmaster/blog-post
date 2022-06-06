@@ -2,7 +2,7 @@
 title: "Linux虚拟文件系统概述"
 date: 2022-05-18T13:46:53+08:00
 tags: ['linux', '虚拟文件系统', 'Linux vfs', vfs]
-categories: ['linux']
+categories: ['kernel']
 draft: false
 ---
 

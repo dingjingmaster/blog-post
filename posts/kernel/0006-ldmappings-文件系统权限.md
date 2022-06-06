@@ -2,7 +2,7 @@
 title: "ldmappings 文件系统权限"
 date: 2022-05-30T17:48:05+08:00
 tags: ['linux', 'kernel', 'filesystem', '文件系统']
-categories: ['linux']
+categories: ['kernel']
 draft: false
 ---
 

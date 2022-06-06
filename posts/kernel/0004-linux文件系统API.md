@@ -2,7 +2,7 @@
 title: "Linux文件系统API"
 date: 2022-05-30T16:57:08+08:00
 tags: ['linux', 'kernel', 'filesystem', '文件系统']
-categories: ['linux']
+categories: ['kernel']
 draft: true
 ---
 ## Linux 文件系统API

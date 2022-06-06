@@ -2,7 +2,7 @@
 title: "Linux内核"
 date: 2022-05-18T11:14:55+08:00
 tags: ['linux', 'kernel', '文件系统', 'filesystem']
-categories: ['linux']
+categories: ['kernel']
 draft: false
 ---
 
