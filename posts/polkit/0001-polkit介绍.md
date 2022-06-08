@@ -1,9 +1,9 @@
 ---
-title: "Polkit"
-date: 2022-05-11T13:50:53+08:00
-tags: ['linux']
+title: "Polkit 介绍"
+date: 2022-06-07T18:50:53+08:00
+tags: ['linux', 'polkit']
 categories: ['linux']
-draft: true
+draft: false
 ---
 ## polkit是什么?
 

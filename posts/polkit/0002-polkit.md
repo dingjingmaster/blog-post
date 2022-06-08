@@ -1,7 +1,7 @@
 ---
-title: "polkit 介绍与使用"
-date: 2022-06-08T18:55:26+08:00
-tags: ['linux', 'polkit', 'Authorization']
+title: "polkit 授权管理器"
+date: 2022-06-07T18:55:26+08:00
+tags: ['linux', 'polkit', 'Authorization manager']
 categories: ['linux']
 draft: false
 ---
