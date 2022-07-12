@@ -137,8 +137,74 @@ BPF 跟踪可以在整个软件栈范围内提供能见度，允许我们随时�
 |`tracepoint:syscalls:sys_enter_open`|对`open(2)`系统调用进行插桩|
 |`usdt:/usr/sbin/mysqld:mysql:query_start`|对`/usr/sbin/mysqld`程序中的`query_start`探针进行插桩|
 
+### 例子
+#### bpftrace跟踪open()
+
+```shell
+bpftrace  -e  'tracepoint:syscalls:sys_enter_open {printf("%s  %s\n", comm, str(args->filename));}'
+```
+输出结果打印了进程的名字和传递给 open(2) 系统调用的文件名: bpftrace 是全系统层面的跟踪，因此任何调用了 open(2) 的应用都能覆盖。
+
+> BPF 程序被定义在单引号所包围的代码内，当敲击Enter键运行bpftrace命令时候，它会立即被编译并且运行。
+
+当然 `open()` 函数还有其它变体，比如：`openat()`，可以使用如下命令列出所有与open系统调用相关的跟踪点
+
+```shell
+# -l 和通配符 一起使用，列出所有与 open 系统调用相关的跟踪点
+bpftrace  -l  'tracepoint:syscalls:sys_enter_open*'
+
+# open() 及其变体的使用频率
+bpftrace  -e  'tracepoint:syscalls:sys_enter_open* {@[probe] = count();}'
+```
+
+
+## BPF 技术原理
+<div align=center><img src='/pic/bpf/bpf-2.png'/></div>
+<center>BPF 技术原理</center>
+
+BPF 程序使用 BPF字节码(BPF虚拟机的指令集)定义过滤表达式，然后传递给内核，由解释器执行，无须数据包复制。
+<br/>
+BPF 提供了安全保障，用户自定义的过滤器在执行前必须先通过安全性验证，且必须在内核空间执行。
+
+### 早期BPF和扩展版BPF
+
+- 1997年进入Linux2.1.75：最初BPF被称为“经典BPF”，它是一个功能有限的虚拟机。
+- 2011年7月Linux3.0 中增加了BPF即时编译器(just-in-time, JIT)，相比解释器来说，它执行效率更高。
+- 2012年 Will Drewry 为安全计算系统调用添加了 BPF 过滤器，这是第一次运用在网络领域之外，也先是出BPF可以作为一个通用执行引擎的潜力。
+- 2013年12月提议在此之前创造的eBPF合入Linux内核
+- 2014年eBPF补丁开始合入Linux内核
+- 2014年6月，JIT组件并入Linux内核3.15中
+- 2014年12月，用于控制BPF的bpf(2)系统调用进入Linux3.18版本中。之后在Linux4.x内核增加了对 `kprobes`、`uprobes`、`tracepoints` 和 `perf_events` 的BPF支持。
+
+> 目前所说的BPF都指eBPF
+
+### BPF 运行时
+下图展示 BPF 指令如何通过BPF验证器验证，再由BPF虚拟机执行过程：
+<div align=center><img src='/pic/bpf/bpf-3.png'/></div>
+<center>BPF 运行时各模块架构</center>
+
+BPF 虚拟机实现包括:`解释器`和`JIT编译器`，JIT编译器负责生成处理器可直接执行的机器指令。验证器会拒绝那些不安全的操作，这包括针对无界循环的检查：BPF程序必须在有限的时间内执行完成。
+
+<br/>
+BPF 可以利用辅助函数获取内核状态，利用BPF映射表进行存储。BPF程序在特定事件发生时候执行，包括 kprobes、uprobes和跟踪点等事件。
+
+### 使用 BPF 或 内核模块实现性能分析工具的思路
+
+....
+
+### 编写BPF程序
+
+很多前端工具可以用来支持 BPF 编程，在跟踪观测方面，主要的前端按照开发语言从低级到高级排列如下：
+- LLVM
+- BCC
+- bpftrace
+
+LLVM 编译器支持将 BPF 作为编译目标体系结构。BPF 程序可以使用 LLVM 支持的更高级语言编写，比如 C 语言(借助Clang)或LLVM中间表示形式，然后再编译成 BPF。
+
+LLVM 自带优化器，可以对它生成的 BPF 指令进行效率和体积上的优化。
 
 ## 参考
 
 - [BPF 相关源码所在仓库: https://github.com/iovisor](https://github.com/iovisor)
 - 以 Arch Linux 为例，使用 BCC 则执行`pacman -S bcc bcc-tools python-bcc`，同时[要注意一些内核编译配置](https://github.com/iovisor/bcc/blob/master/INSTALL.md#arch---binary)。安装成功之后进入本地系统 `/usr/share/bcc`查看相关工具
+
