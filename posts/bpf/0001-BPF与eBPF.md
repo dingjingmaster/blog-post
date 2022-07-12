@@ -3,7 +3,7 @@ title: "BPF与eBPF"
 date: 2022-06-29T11:02:30+08:00
 tags: ['linux', 'BPF', 'eBPF']
 categories: ['linux']
-draft: true
+draft: false
 ---
 
 ## BPF与eBPF是什么
@@ -202,6 +202,9 @@ BPF 可以利用辅助函数获取内核状态，利用BPF映射表进行存储�
 LLVM 编译器支持将 BPF 作为编译目标体系结构。BPF 程序可以使用 LLVM 支持的更高级语言编写，比如 C 语言(借助Clang)或LLVM中间表示形式，然后再编译成 BPF。
 
 LLVM 自带优化器，可以对它生成的 BPF 指令进行效率和体积上的优化。
+
+....
+> 留坑后续再填...
 
 ## 参考
 
