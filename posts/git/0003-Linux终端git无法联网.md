@@ -15,5 +15,11 @@ draft: false
 ```
 git config --global http.proxy 'sockets5://127.0.0.1:7891'
 git config --global https.proxy 'sockets5://127.0.0.1:7891'
+
+# 或者
+git config --global http.proxy 'http://127.0.0.1:7890'
+git config --global https.proxy 'https://127.0.0.1:7890'
 ```
+
+具体看使用啥代理方式
 
