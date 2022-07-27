@@ -3,7 +3,7 @@ title: "高效的序列化、反序列化工具——ProtoBuf"
 date: 2022-07-21T23:01:45+08:00
 tags: ['c', 'c++', 'protobuf', '序列化', '反序列化']
 categories: ['c&c++']
-draft: true
+draft: false
 ---
 
 ## ProtoBuf 简介
@@ -46,6 +46,7 @@ proto文件中就是定义了我们需要存储或传输的数据结构/传输�
 
 <br/>
 proto文件的定义主要分为两部分：
+
 1. 为每一个需要序列化的数据结构添加一个消息(message)。
 2. 为消息(message)中的每一个字段(field)指定一个名字、类型和修饰符以及唯一标识(tag)。
 
@@ -106,15 +107,69 @@ message AddressBook {
 // [END messages]
 
 ```
-- package 声明
-.proto 文件以一个 package 声明开始，这个声明是为了防止不同项目之间的命名冲突，对应到 c++中，这个 .proto 文件生成的类将被放置在一个与package名相同的命名空间中。
-- 字段类型
+- package 声明：`.proto` 文件以一个 `package` 声明开始，这个声明是为了防止不同项目之间的命名冲突，对应到 c++ 中，这个 .proto 文件生成的类将被放置在一个与package名相同的命名空间中。
+- 字段类型：定义 message 时候，一个 message 就是某些类型字段的集合。具体支持的字段类型见：[字段类型](/2022/07/0006-%E9%AB%98%E6%95%88%E7%9A%84%E5%BA%8F%E5%88%97%E5%8C%96%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E5%B7%A5%E5%85%B7protocol-buffers/#protobuf-%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84)
+- 修饰符：每个字段都必须用以下之一的修饰符来修饰：
+|修饰符|含义|
+|---|---|
+|required|必须提供字段值，否则对应的消息会被认为是"`未初始化`"的。<br/>注意：`解析"未初始化"的消息会导致失败`。|
+|optional|字段值指定与否都可以，它是每个字段默认值。<br/>调用时候没有指定message的字段值，会自动使用默认值：`string`默认值是`空字符串`；`int`默认值是`0`|
+|repeated|字段会重复`N`次(`N`可以是`0`)，重复值的顺序会被保存在ProtoBuf中<br/>注意：`可以把重复字段视为数组`。|
+- 唯一编号：每个消息中的每个字段都有唯一的编号，字段后边的`=1`、`=2`等。这些字段编号用于标识消息二进制中的字段，并且在使用消息类型后不应该再更改。注意：`1 ~ 15` 中的字段需要一个字节进行编码，包括字段编号和字段类型。`16 ~ 2047` 中的字段编号需要两个字节。所以保留 1 - 15 作为非常频繁出现的消息元素，也要注意为将来可能频繁出现的消息元素预留位置。
+> 可以指定的最小字段编号为：`1`，最大字段编号：$2^{29}-1$ 或 `536 870 911`。
+> <br/>也不能使用数字`19 000` 到 `19 999`，他们是 protobuf 保留的。
 
-https://blog.csdn.net/K346K346/article/details/51754431
 
 ### 2. 编译proto文件
 
+```shell
+protoc --cpp_out=/data/code/demo/protobuf/c++ -I/data/code/demo/protobuf/c++ xxx.proto
+```
+其中：
+- `--cpp_out=<dir>` 表示生成代码输出到的指定文件夹
+- `-I<dir>` 表示在哪个文件夹下寻找 xxx.proto 文件
+- `xxx.proto` 就是我们写好的 `.proto` 文件
+
+[完整例子](https://github.com/dingjingmaster/demo/tree/master/protobuf)
+
+> 注意：如果编译上述例子出错，则可以重新编译安装 protobuf，几乎没有依赖，克隆源码就可编译安装。
+> <br/> 亲测我的 `archlinux` 使用包管理器安装的 protobuf 是不能用的。
+
+编译 protobuf 源码具体步骤如下：
+1. 克隆源码：[https://github.com/protocolbuffers/protobuf.git](https://github.com/protocolbuffers/protobuf.git)
+2. 进入源码目录执行安装：`./autogen.sh && ./configure --prefix=/usr && make -j8 && sudo make install`
 
 
 ### 3. 使用生成的代码来读写消息
 
+```c
+// [1] 验证版本
+GOOGLE_PROTOBUF_VERIFY_VERSION;         
+
+// [2] 根据 protobuf 中 message 生成的对象
+test1::Response p1;
+p1.set_data("data");
+p1.set_status(1);
+
+cout << "=================================\n";
+cout << "p1.data: " << p1.data() << "\n"
+     << "p1.status: " << p1.status() << "\n";
+
+// [3] 执行序列化
+// 注意：序列化之后可以用 p1.DebugString();  来查看序列化字符串
+cout << "serialize string:" << p1.SerializeAsString() << "\n";
+cout << "=================================\n";
+
+// [4] 反序列化
+// 反序列化之前也可以使用 DebugString() 来查看要反需列化的字符串是否正确
+// 反序列化 bool ParseFromString(const string& data);
+
+// [5] 释放 protobuf 相关内存
+google::protobuf::ShutdownProtobufLibrary();
+
+```
+
+> 序列化与反序列化过程中尽量保证使用 `char*` 或 `std::string` 来接收数据。
+> <br/>亲测QString参与会导致反序列化失败。
+
+[完整例子](https://github.com/dingjingmaster/demo/tree/master/protobuf)
