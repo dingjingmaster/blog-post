@@ -38,6 +38,41 @@ ProtoBuf(Protocol Buffers) 是 Google [用于实现`序列化`与`反序列化`�
 |string|string|一个字符串必须是utf-8编码或者7-bit的ascii编码的文本|
 |bytes|string|可能包含任意顺序的字节数据|
 
+## `.proto` 文件
+|关键字|说明|
+|---|---|
+|syntax|指定`proto`语言版本|
+|option|修改配置选项|
+|service|声明一个服务|
+|rpc|声明一个方法|
+|resturns|方法的返回值|
+|message|定义一个消息类型|
+|repeated|数组|
+|stream|用流来交互|
+
+### 一些例子
+
+#### 指定一个版本
+```
+syntax = "proto3"
+```
+
+#### 定义一个服务和方法
+```
+service TestService 
+{
+    rpc testMethod(Request) returns (Result) {}
+}
+
+message Request
+{
+}
+
+message Result
+{
+}
+```
+
 ## ProtoBuf使用一般步骤
 
 ### 1. 定义proto文件
