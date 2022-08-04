@@ -1,7 +1,7 @@
 ---
-title: "0010 Linux挂载qcow2"
+title: "Linux挂载qcow2"
 date: 2022-07-24T22:02:25+08:00
-tags: ['linux', 'qcow2']
+tags: ['linux', 'qcow2', 'kvm']
 categories: ['linux']
 draft: false
 ---
@@ -21,5 +21,10 @@ sudo qemu-nbd  -c  /dev/nbd0  <qcow2的路径>
 ```
 
 4. 通过`/dev/nbd0px`按需挂载 qcow2 设备
+
+5. 最后 卸载设备
+```shell
+sudo qemu-nbd -d /dev/nbd0
+```
 
 
