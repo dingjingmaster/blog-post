@@ -1366,6 +1366,245 @@ ABI的稳定性不仅依赖于Python，还依赖于所使用的编译器、底�
 #### `unaryfunc`
 #### `visitproc`
 
+## 使用C/C++调用 python
+
+本章中的函数将允许你执行文件或缓冲区中给出的Python源代码，但它们不会让你以更详细的方式与解释器交互。
+<br/>
+
+其中几个函数接受语法中的开始符号作为参数。可用的开始符号是`Py_eval_input`、`Py_file_input`和`Py_single_input`。它们在接受它们作为参数的函数之后被描述。
+<br/>
+
+还要注意，这些函数中有几个接受`FILE*`参数。需要谨慎处理的一个特殊问题是，不同C库的FILE结构可能不同且不兼容。在Windows下(至少)，动态链接的扩展可能实际使用不同的库，所以应该注意`FILE*`参数只在确定它们是由Python运行时使用的同一库创建的情况下传递给这些函数。
+
+### `int Py_Main(int argc, wchar_t **argv)`
+
+主程序为标准解释器。这对于嵌入Python的程序是可用的。argc和argv形参应该与传递给C程序main()函数的形参完全相同(根据用户的语言环境转换为wchar_t)。需要注意的是，参数列表可能会被修改(但参数列表所指向的字符串内容不会被修改)。如果解释器正常退出(即没有异常)，返回值将为0;如果解释器因异常退出，返回值将为1;如果参数列表不代表有效的Python命令行，返回值将为2。
+<br/>
+
+> 注意，如果`Py_InspectFlag`没有设置，抛出一个未处理的`SystemExit`，这个函数将不会返回1，而是退出进程。
+> <br/>Part of the Stable ABI.
+
+### `int Py_BytesMain(int argc, char **argv)`
+
+类似于`Py_Main()`，但argv是一个字节串数组。
+
+> Part of the Stable ABI since version 3.8.
+
+### `int PyRun_AnyFile(FILE *fp, const char *filename)`
+
+这是下面`PyRun_AnyFileExFlags()`的简化接口，将closeit设为0,flags设为NULL。
+
+### `int PyRun_AnyFileFlags(FILE *fp, const char *filename, PyCompilerFlags *flags)`
+
+这是下面`PyRun_AnyFileExFlags()`的简化接口，将`closeit`参数设置为0。
+
+### `int PyRun_AnyFileEx(FILE *fp, const char *filename, int closeit)`
+
+这是下面`PyRun_AnyFileExFlags()`的简化接口，将flags参数设置为NULL。
+
+### `int PyRun_AnyFileExFlags(FILE *fp, const char *filename, int closeit, PyCompilerFlags *flags)`
+
+如果`fp`指向与交互设备(控制台或终端输入或Unix伪终端)关联的文件，则返回`PyRun_InteractiveLoop()`的值，否则返回`PyRun_SimpleFile()`的结果。文件名从文件系统编码解码(`sys.getfilesystemencoding()`)。如果`filename`为`NULL`，此函数使用“`???`”作为文件名。如果`closeit`为真，则在`PyRun_SimpleFileExFlags()`返回之前关闭文件。
+
+### `int PyRun_SimpleString(const char *command)`
+
+这是下面`PyRun_SimpleStringFlags()`的简化接口，将`PyCompilerFlags*`参数设置为NULL。
+
+### `int PyRun_SimpleStringFlags(const char *command, PyCompilerFlags *flags)`
+
+根据`flags`参数在`__main__`模块中执行Python源代码from命令。如果`__main__`不存在，则会创建它。成功时返回`0`，如果引发异常则返回`-1`。如果出现错误，则无法获取异常信息。关于flags的含义，请参见下文。
+
+> 注意，如果抛出一个未处理的`SystemExit`，这个函数将不会返回`-1`，而是退出进程，只要`Py_InspectFlag`没有设置。
+
+### `int PyRun_SimpleFile(FILE *fp, const char *filename)`
+
+这是下面`PyRun_SimpleFileExFlags()`的简化接口，将`closeit`设置为`0`，将`flags`设置为`NULL`。
+
+### `int PyRun_SimpleFileEx(FILE *fp, const char *filename, int closeit)`
+
+这是下面`PyRun_SimpleFileExFlags()`的简化接口，将标志设置为`NULL`。
+
+### `int PyRun_SimpleFileExFlags(FILE *fp, const char *filename, int closeit, PyCompilerFlags *flags)`
+
+类似于`PyRun_SimpleStringFlags()`，但Python源代码是从`fp`而不是内存中的字符串中读取的。文件名应该是文件的名称，它从文件系统编码和错误处理程序解码。如果`closeit`为真，则在`PyRun_SimpleFileExFlags()`返回之前关闭文件。
+
+> 注意：在Windows上，fp应该以二进制模式打开(例如fopen(filename， "rb"))。否则，Python可能无法正确处理LF行结束的脚本文件。
+
+### `int PyRun_InteractiveOne(FILE *fp, const char *filename)`
+
+这是下面`PyRun_InteractiveOneFlags()`的简化接口，将标志设置为`NULL`。
+
+### `int PyRun_InteractiveOneFlags(FILE *fp, const char *filename, PyCompilerFlags *flags)`
+
+根据flags参数从与交互式设备关联的文件中读取并执行单个语句。使用sys将提示用户。ps1和sys.ps2。文件名从文件系统编码和错误处理程序解码。
+<br/>
+
+当成功执行输入时返回0，如果出现异常则返回-1，如果出现解析错误则返回来自作为Python一部分分发的errcode.h包含文件的错误代码。(注意，errcode.h不包含在Python.h中，因此必须在需要时特别包含。)
+
+### `int PyRun_InteractiveLoop(FILE *fp, const char *filename)`
+
+这是下面`PyRun_InteractiveLoopFlags()`的简化接口，将标志设置为`NULL`。
+
+### `int PyRun_InteractiveLoopFlags(FILE *fp, const char *filename, PyCompilerFlags *flags)`
+
+从与交互式设备相关联的文件中读取并执行语句，直到到达`EOF`为止。使用`sys`将提示用户。`ps1`和`sys.ps2`。文件名从文件系统编码和错误处理程序解码。
+<br/>
+遇到`EOF`时返回0，失败时返回负数。
+
+### `int (*PyOS_InputHook)(void)`
+
+可以设置为指向一个原型为int func(void)的函数。该函数将在Python解释器提示即将空闲并等待用户从终端输入时被调用。返回值将被忽略。覆盖此钩子可以用于将解释器的提示符与其他事件循环集成，就像在Python源代码中的`Modules/_tkinter.c`中所做的那样。
+
+### `char *(*PyOS_ReadlineFunctionPointer)(FILE*, FILE*, const char*)`
+
+可以设置为指向原型函数`char* func (FILE *stdin, FILE *stdout, char *prompt)`，覆盖用于在解释器提示符处读取单行输入的默认函数。如果字符串提示符不是NULL，该函数将输出该字符串提示符，然后从提供的标准输入文件中读取一行输入，返回结果字符串。例如，readline模块设置这个钩子来提供行编辑和制表符补全功能。
+<br/>
+
+结果必须是`PyMem_RawMalloc()`或`PyMem_RawRealloc()`分配的字符串，如果发生错误则为`NULL`。
+<br/>
+
+> 在3.4版更改:结果必须由`PyMem_RawMalloc()`或`PyMem_RawRealloc()`分配，而不是由`PyMem_Malloc()`或`PyMem_Realloc()`分配。
+
+### `PyObject *PyRun_String(const char *str, int start, PyObject *globals, PyObject *locals)`
+
+这是下面`PyRun_StringFlags()`的简化接口，将标志设置为`NULL`。
+
+> Return value: New reference.
+
+### `PyObject *PyRun_StringFlags(const char *str, int start, PyObject *globals, PyObject *locals, PyCompilerFlags *flags)`
+
+在对象`globals`和`locals`指定的上下文中从`str`执行`Python`源代码，编译器标记由`flags`指定。全局变量必须是字典;局部变量可以是实现映射协议的任何对象。参数`start`指定应该用于解析源代码的开始令牌。
+<br/>
+以Python对象的形式返回代码执行的结果，如果引发异常则返回NULL。
+
+> Return value: New reference.
+
+### `PyObject *PyRun_File(FILE *fp, const char *filename, int start, PyObject *globals, PyObject *locals)`
+
+这是下面`PyRun_FileExFlags()`的简化接口，将`closeit`设置为`0`，将`flags`设置为`NULL`。
+
+> Return value: New reference.
+
+### `PyObject *PyRun_FileEx(FILE *fp, const char *filename, int start, PyObject *globals, PyObject *locals, int closeit)`
+
+这是下面`PyRun_FileExFlags()`的简化接口，将标志设置为`NULL`。
+
+> Return value: New reference.
+
+### `PyObject *PyRun_FileFlags(FILE *fp, const char *filename, int start, PyObject *globals, PyObject *locals, PyCompilerFlags *flags)`
+
+这是下面的`PyRun_FileExFlags()`的简化接口，将`closeit`设置为`0`。
+
+> Return value: New reference.
+
+### `PyObject *PyRun_FileExFlags(FILE *fp, const char *filename, int start, PyObject *globals, PyObject *locals, int closeit, PyCompilerFlags *flags)`
+
+类似于`PyRun_StringFlags()`，但Python源代码是从fp而不是内存中的字符串中读取的。`filename`应该是文件的名称，它是从文件系统编码和错误处理程序解码而来的。如果`closeit`为真，则在`PyRun_FileExFlags()`返回之前关闭文件。
+
+> Return value: New reference.
+
+### `PyObject *Py_CompileString(const char *str, const char *filename, int start)`
+
+这是下面`Py_CompileStringFlags()`的简化接口，将`flags`设置为`NULL`。
+
+> Return value: New reference. Part of the Stable ABI
+
+### `PyObject *Py_CompileStringFlags(const char *str, const char *filename, int start, PyCompilerFlags *flags)`
+
+这是下面`Py_CompileStringExFlags()`的简化接口，优化设置为`-1`。
+
+> Return value: New reference.
+
+### `PyObject *Py_CompileStringObject(const char *str, PyObject *filename, int start, PyCompilerFlags *flags, int optimize)`
+
+在`str`中解析并编译Python源代码，返回结果代码对象。开始令牌由`start`给出;这可以用来约束可以被编译的代码，这些代码应该是`Py_eval_input`, `Py_file_input`，或`Py_single_input`。由`filename`指定的文件名用于构造代码对象，可能出现在`tracebacks`或`SyntaxError`异常消息中。如果代码无法解析或编译，则返回`NULL`。
+<br/>
+
+整数`optimize`指定编译器的优化级别;`-1`选择解释器的优化级别，就像-O选项一样。明确的关卡为`0`(没有优化;`__debug__`为真)，`1`(断言被删除，`__debug__`为假)或`2`(文档字符串也被删除)。
+
+> New in version 3.4.
+
+### `PyObject *Py_CompileStringExFlags(const char *str, const char *filename, int start, PyCompilerFlags *flags, int optimize)`
+
+类似于`Py_CompileStringObject()`，但`filename`是一个从文件系统编码和错误处理程序解码的字节字符串。
+
+> Return value: New reference.
+
+### `PyObject *PyEval_EvalCode(PyObject *co, PyObject *globals, PyObject *locals)`
+
+这是`PyEval_EvalCodeEx()`的简化接口，只有代码对象，以及全局和局部变量。其他参数设置为NULL。
+
+> Return value: New reference. Part of the Stable ABI.
+
+### `PyObject *PyEval_EvalCodeEx(PyObject *co, PyObject *globals, PyObject *locals, PyObject *const *args, int argcount, PyObject *const *kws, int kwcount, PyObject *const *defs, int defcount, PyObject *kwdefs, PyObject *closure)`
+
+在给定用于求值的特定环境下，求值预编译代码对象。这个环境由一个全局变量字典、一个局部变量映射对象、参数数组、关键字和默认值、一个仅关键字参数的默认值字典和一个闭包元组组成。
+
+> Return value: New reference. Part of the Stable ABI.
+
+### `type PyFrameObject`
+
+C语言结构的对象用来描述框架对象。这种类型的字段可以随时更改。
+
+> Part of the Limited API (as an opaque struct).
+
+### `PyObject *PyEval_EvalFrame(PyFrameObject *f)`
+
+评估执行框架。这是`PyEval_EvalFrameEx()`的简化接口，用于向后兼容。
+
+> Return value: New reference. Part of the Stable ABI.
+
+### `PyObject *PyEval_EvalFrameEx(PyFrameObject *f, int throwflag)`
+
+这是Python解释的主要的、未加修饰的功能。与执行帧f相关联的代码对象被执行，解释字节码并根据需要执行调用。附加的throwflag参数基本上可以忽略——如果为真，则会导致立即抛出异常;这用于生成器对象的throw()方法。
+
+> Return value: New reference. Part of the Stable ABI.<br/>
+> 在3.4版更改:此函数现在包含一个调试断言，以帮助确保它不会静默地丢弃活动异常。
+
+### `int PyEval_MergeCompilerFlags(PyCompilerFlags *cf)`
+
+这个函数改变当前求值框架的标志，成功时返回true，失败时返回false。
+
+### `int Py_eval_input`
+
+独立表达式的Python语法中的开始符号;用于`Py_CompileString()`。
+
+### `int Py_file_input`
+
+Python语法中用于从文件或其他源读取语句序列的开始符号;用于`Py_CompileString()`。这是在编译任意长的Python源代码时使用的符号。
+
+### `int Py_single_input`
+
+Python语法中单个语句的开始符号;用于`Py_CompileString()`。这是用于交互解释器循环的符号。
+
+### `struct PyCompilerFlags`
+
+这是用来保存编译器标志的结构。在只编译代码的情况下，它作为int标志传递，在执行代码的情况下，它作为`PyCompilerFlags *`标志传递。在这种情况下，`from __future__ import`可以修改标志。
+
+每当`PyCompilerFlags *flags`为`NULL`时，`cf_flags`将被视为等于`0`，并且由`__future__`导入引起的任何修改将被丢弃。
+
+### `int cf_flags`
+
+编译 flag
+
+### `int cf_feature_version`
+
+`cf_feature_version`是次要的`Python`版本。它应该初始化为`PY_MINOR_VERSION`。
+
+该字段默认被忽略，当且仅当在`cf_flags`中设置`PyCF_ONLY_AST`标志时才会使用。
+
+> 在3.8版更改:添加`cf_feature_version`字段。
+
+### `int CO_FUTURE_DIVISION`
+
+根据`PEP 238`，可以在标志中设置该位，使除法运算符/被解释为“真正的除法”。
+
+
+
+
+
+
+
 
 
 
