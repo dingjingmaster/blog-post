@@ -1,6 +1,6 @@
 ---
 title: "Linux Kernel学习准备"
-date: 2022-10-10T15:49:23+08:00
+date: 2022-09-30T21:49:23+08:00
 tags: ['linux', 'kernel']
 categories: ['kernel']
 draft: false 
