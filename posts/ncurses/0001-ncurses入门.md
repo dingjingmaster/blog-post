@@ -3,7 +3,7 @@ title: "ncurses入门"
 date: 2023-01-11T21:03:48+08:00
 tags: ['ncurses', 'linux']
 categories: ['ncurses']
-draft: true
+draft: false
 ---
 
 ## 简介
@@ -2588,7 +2588,888 @@ void func(char *name)
     mvprintw(20, 0, "Item selected is : %s", name);
 }
 ```
+## 表单（Forms）
+
+好。如果你在网页上看到过这些表单，它们从用户那里获取输入并做各种各样的事情，你可能想知道如何在文本模式下创建这样的表单。用简单的语言写出那些漂亮的形式是相当困难的。表单库试图提供一个基本框架来轻松地构建和维护表单。它有很多特性(功能)，管理验证，动态扩展字段等。让我们来看看它的全部流程。
+
+表单是字段的集合;每个字段可以是一个标签(静态文本)，也可以是一个数据输入位置。表单库还提供了将表单划分为多个页面的函数。
+
+表单的创建方式与菜单的创建方式大致相同。首先使用`new_field()`创建与表单相关的字段。您可以为字段设置选项，这样它们就可以按设置显示一些属性，在字段失去焦点之前进行验证等等。然后将字段附加到表单。在此之后，表单就可以显示并准备接收输入了。在与`menu_driver()`类似的行中，使用`form_driver()`操作表单。我们可以向`form_driver`发送请求，将焦点移动到某个字段，将光标移动到字段的末尾等。在用户在字段中输入值并完成验证后，表单可以取消张贴，分配的内存可以释放。
+
+表单程序的一般控制流程如下所示。
+
+1. 初始化curses
+2. 使用`new_field()`创建字段。您可以指定字段的高度和宽度，以及它在表单上的位置。
+3. 通过指定要附加的字段，使用`new_form()`创建表单。
+4. 使用`form_post()`提交表单并刷新屏幕。
+5. 使用循环处理用户请求，并使用`form_driver`对form进行必要的更新。
+6. 使用`form_unpost()`取消菜单
+7. 释放`free_form()`分配给菜单的内存
+8. 使用`free_field()`释放分配给项的内存
+9. 结束curses
+
+如您所见，使用表单库与处理菜单库非常相似。下面的示例将探讨表单处理的各个方面。让我们从一个简单的例子开始。
+
+```c
+#include <form.h>
+
+int main()
+{
+    FIELD *field[3];
+    FORM  *my_form;
+    int ch;
+
+    /* Initialize curses */
+    initscr();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+
+    /* Initialize the fields */
+    field[0] = new_field(1, 10, 4, 18, 0, 0);
+    field[1] = new_field(1, 10, 6, 18, 0, 0);
+    field[2] = NULL;
+
+    /* Set field options */
+    set_field_back(field[0], A_UNDERLINE);  /* Print a line for the option  */
+    field_opts_off(field[0], O_AUTOSKIP);   /* Don't go to next field when this */
+    /* Field is filled up       */
+    set_field_back(field[1], A_UNDERLINE); 
+    field_opts_off(field[1], O_AUTOSKIP);
+
+    /* Create the form and post it */
+    my_form = new_form(field);
+    post_form(my_form);
+    refresh();
+
+    mvprintw(4, 10, "Value 1:");
+    mvprintw(6, 10, "Value 2:");
+    refresh();
+
+    /* Loop through to get user requests */
+    while((ch = getch()) != KEY_F(1)) {
+        switch(ch) {
+            case KEY_DOWN:
+            /* Go to next field */
+            form_driver(my_form, REQ_NEXT_FIELD);
+            /* Go to the end of the present buffer */
+            /* Leaves nicely at the last character */
+            form_driver(my_form, REQ_END_LINE);
+            break;
+            case KEY_UP:
+            /* Go to previous field */
+            form_driver(my_form, REQ_PREV_FIELD);
+            form_driver(my_form, REQ_END_LINE);
+            break;
+            default:
+            /* If this is a normal character, it gets */
+            /* Printed                */    
+            form_driver(my_form, ch);
+            break;
+        }
+    }
+
+    /* Un post form and free the memory */
+    unpost_form(my_form);
+    free_form(my_form);
+    free_field(field[0]);
+    free_field(field[1]); 
+
+    endwin();
+
+    return 0;
+}
+```
+
+上面的例子很简单。它使用`new_field()`创建了两个字段。`new_field()`获取高度、宽度、起始值、startx、屏幕外行数和额外工作缓冲区数。屏幕外行数的第五个参数指定要显示的字段的大小。如果它为零，则始终显示整个字段，否则当用户访问未显示的字段部分时，表单将是可滚动的。表单库为每个字段分配一个缓冲区来存储用户输入的数据。使用`new_field()`的最后一个参数，我们可以指定它来分配一些额外的缓冲区。这些可以用于任何你喜欢的目的。
 
 
+在创建字段之后，它们的背景属性都被设置为一个下划线，使用`set_field_back()`。AUTOSKIP选项使用`field_opts_off()`关闭。如果打开此选项，一旦活动字段被完全填充，焦点将移动到表单中的下一个字段。
 
+在将字段附加到表单之后，表单就被发布了。在这里，通过向`form_driver`发出相应的请求，在while循环中处理用户输入。对`form_driver()`的所有请求的详细信息将在后面解释。
+
+每个表单字段都与许多属性相关联。他们可以被操纵，以获得所需的效果和乐趣!!那为什么还要等待呢?
+
+我们在创建字段时给出的参数可以使用`field_info()`检索。它返回高度、宽度、起始值、startx、屏幕外行数以及给定参数的附加缓冲区数。它是`new_field()`的逆函数。
+
+```c
+int field_info(     FIELD *field,              /* field from which to fetch */
+                    int *height, *int width,   /* field size */ 
+                    int *top, int *left,       /* upper left corner */
+                    int *offscreen,            /* number of offscreen rows */
+                    int *nbuf);                /* number of working buffers */
+```
+
+可以使用`move_field()`将字段的位置移动到不同的位置。
+
+```c
+int move_field(    FIELD *field,              /* field to alter */
+                   int top, int left);        /* new upper-left corner */
+```
+
+与往常一样，可以使用`field_infor()`查询更改的位置。
+
+可以使用函数`set_field_just()`对字段进行校正。
+```c
+int set_field_just(FIELD *field,            /* field to alter */
+                    int justmode);          /* mode to set */
+int field_just(FIELD *field);               /* fetch justify mode of field */
+```
+
+这些函数接受和返回的调整模式值为`NO_JUSTIFICATION`、`justicy_right`、`justicy_left`或`justicy_center`。
+
+### 字段显示属性
+
+如您所见，在上面的示例中，可以使用`set_field_fore()`和`setfield_back()`设置字段的`display`属性。这些函数设置字段的前景和背景属性。您还可以指定一个填充字符，它将被填充在字段的未填充部分。pad字符通过调用`set_field_pad()`来设置。pad默认值为空格。函数`field_fore()`，`field_back`, `field_pad()`可用于查询当前前景，背景属性和字段的填充字符。下面的列表给出了函数的用法。
+
+```c
+int set_field_fore(FIELD *field,        /* field to alter */
+                   chtype attr);        /* attribute to set */ 
+
+chtype field_fore(FIELD *field);        /* field to query */
+                                        /* returns foreground attribute */
+
+int set_field_back(FIELD *field,        /* field to alter */
+                   chtype attr);        /* attribute to set */ 
+
+chtype field_back(FIELD *field);        /* field to query */
+                                        /* returns background attribute */
+
+int set_field_pad(FIELD *field,         /* field to alter */
+                  int pad);             /* pad character to set */ 
+
+chtype field_pad(FIELD *field);         /* field to query */  
+                                        /* returns present pad character */
+```
+
+虽然上面的函数看起来很简单，但在一开始使用`set_field_fore()`使用颜色可能会令人沮丧。让我先解释一下字段的前景和背景属性。前台属性与字符相关联。这意味着字段中的字符将使用您使用`set_field_fore()`设置的属性打印。背景属性是用于填充字段背景的属性，无论是否有字符。那么颜色呢?由于颜色总是成对定义的，那么显示彩色字段的正确方法是什么?下面是一个说明颜色属性的示例。
+
+```c
+
+#include <form.h>
+
+int main()
+{
+    FIELD *field[3];
+    FORM  *my_form;
+    int ch;
+
+    /* Initialize curses */
+    initscr();
+    start_color();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+
+    /* Initialize few color pairs */
+    init_pair(1, COLOR_WHITE, COLOR_BLUE);
+    init_pair(2, COLOR_WHITE, COLOR_BLUE);
+
+    /* Initialize the fields */
+    field[0] = new_field(1, 10, 4, 18, 0, 0);
+    field[1] = new_field(1, 10, 6, 18, 0, 0);
+    field[2] = NULL;
+
+    /* Set field options */
+    set_field_fore(field[0], COLOR_PAIR(1));/* Put the field with blue background */
+    set_field_back(field[0], COLOR_PAIR(2));/* and white foreground (characters */
+    /* are printed in white     */
+    field_opts_off(field[0], O_AUTOSKIP);   /* Don't go to next field when this */
+    /* Field is filled up       */
+    set_field_back(field[1], A_UNDERLINE); 
+    field_opts_off(field[1], O_AUTOSKIP);
+
+    /* Create the form and post it */
+    my_form = new_form(field);
+    post_form(my_form);
+    refresh();
+
+    set_current_field(my_form, field[0]); /* Set focus to the colored field */
+    mvprintw(4, 10, "Value 1:");
+    mvprintw(6, 10, "Value 2:");
+    mvprintw(LINES - 2, 0, "Use UP, DOWN arrow keys to switch between fields");
+    refresh();
+
+    /* Loop through to get user requests */
+    while((ch = getch()) != KEY_F(1)) {
+        switch(ch) {
+            case KEY_DOWN:
+            /* Go to next field */
+            form_driver(my_form, REQ_NEXT_FIELD);
+            /* Go to the end of the present buffer */
+            /* Leaves nicely at the last character */
+            form_driver(my_form, REQ_END_LINE);
+            break;
+            case KEY_UP:
+            /* Go to previous field */
+            form_driver(my_form, REQ_PREV_FIELD);
+            form_driver(my_form, REQ_END_LINE);
+            break;
+            default:
+            /* If this is a normal character, it gets */
+            /* Printed                */    
+            form_driver(my_form, ch);
+            break;
+        }
+    }
+
+    /* Un post form and free the memory */
+    unpost_form(my_form);
+    free_form(my_form);
+    free_field(field[0]);
+    free_field(field[1]); 
+
+    endwin();
+
+    return 0;
+}
+```
+使用颜色对，试着理解前景和背景属性。在我使用颜色属性的程序中，我通常只使用`set_field_back()`设置背景。Curses不允许定义单独的颜色属性。
+
+### 字段选项
+
+您还可以设置大量的字段选项位来控制表单处理的各个方面。你可以用这些函数来操作它们:
+
+```c
+int set_field_opts(FIELD *field,          /* field to alter */
+                   int attr);             /* attribute to set */ 
+
+int field_opts_on(FIELD *field,           /* field to alter */
+                  int attr);              /* attributes to turn on */ 
+
+int field_opts_off(FIELD *field,          /* field to alter */
+                  int attr);              /* attributes to turn off */ 
+
+int field_opts(FIELD *field);             /* field to query */ 
+```
+函数`set_field_opts()`可用于直接设置字段的属性，或者您可以选择使用`field_opts_on()`和`field_opts_off()`选择性地打开和关闭一些属性。任何时候都可以使用`field_opts()`查询字段的属性。下面是可用选项的列表。默认情况下，所有选项都是打开的。
+
+
+<style>table th:first-of-type{width:3cm}</style>
+
+|||
+|---|---|
+|`O_VISIBLE`|控制该字段在屏幕上是否可见。可用于在表单处理期间根据父字段的值隐藏或弹出字段。|
+|`O_ACTIVE`|控制字段在表单处理期间是否处于活动状态(即由表单导航键访问)。可用于使带有缓冲区值的标签或派生字段可由表单应用程序而不是用户更改.|
+|`O_PUBLIC`|控制在输入字段时是否显示数据。如果在某个字段上关闭该选项，库将接受并编辑该字段中的数据，但不会显示该数据，可见的字段游标也不会移动。您可以关闭`O_PUBLIC`位来定义密码字段。|
+|`O_EDIT`|控制是否可以修改字段的数据。当该选项关闭时，除`REQ_PREV_CHOICE`和`req_next_choice`外的所有编辑请求都将失败。这种只读字段可能对帮助消息有用。|
+|`O_WRAP`|控制多行字段的换行。通常，当一个(空白分隔的)单词的任何字符到达当前行的末尾时，整个单词被换行到下一行(假设有一行)。关闭此选项时，单词将在换行符上被分割。|
+|`O_BLANK`|控制字段消隐。当该选项打开时，在第一个字段位置输入一个字符将擦除整个字段(除了刚刚输入的字符)。|
+|`O_AUTOSKIP`|控制在填充此字段时自动跳转到下一个字段。通常，当表单用户试图在字段中输入超出容量的数据时，编辑位置将跳转到下一个字段。当关闭此选项时，用户的光标将挂在字段的末尾。在未达到其大小限制的动态字段中，此选项将被忽略。|
+|`O_NULLOK`|控制是否将验证应用于空白字段。通常情况下，它不是;用户可以在退出时不调用通常的验证检查而将字段留空。如果该选项在字段上关闭，退出该选项将调用验证检查。|
+|`O_PASSOK`|控制是否在每个出口上进行验证，还是仅在修改字段之后进行验证。通常后者是正确的。如果字段的验证函数在表单处理过程中发生变化，那么设置`O_PASSOK`可能会很有用。|
+|`O_STATIC`|控制字段是否固定为其初始尺寸。如果关闭此选项，该字段将变成动态的，并将拉伸以适应输入的数据。|
+
+
+当字段当前被选中时，不能更改字段的选项。但是，对于已发布的非当前字段，选项可能会被更改。
+
+选项值是位掩码，可以用逻辑或明显的方式组合。您已经看到了关闭`O_AUTOSKIP`选项的用法。下面的示例说明了更多选项的用法。在适当的地方解释了其他选项。
+
+```c
+#include <form.h>
+
+#define STARTX 15
+#define STARTY 4
+#define WIDTH 25
+
+#define N_FIELDS 3
+
+int main()
+{
+    FIELD *field[N_FIELDS];
+    FORM  *my_form;
+    int ch, i;
+
+    /* Initialize curses */
+    initscr();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+
+    /* Initialize the fields */
+    for(i = 0; i < N_FIELDS - 1; ++i)
+        field[i] = new_field(1, WIDTH, STARTY + i * 2, STARTX, 0, 0);
+    field[N_FIELDS - 1] = NULL;
+
+    /* Set field options */
+    set_field_back(field[1], A_UNDERLINE);  /* Print a line for the option  */
+
+    field_opts_off(field[0], O_ACTIVE); /* This field is a static label */
+    field_opts_off(field[1], O_PUBLIC); /* This filed is like a password field*/
+    field_opts_off(field[1], O_AUTOSKIP); /* To avoid entering the same field */
+    /* after last character is entered */
+
+    /* Create the form and post it */
+    my_form = new_form(field);
+    post_form(my_form);
+    refresh();
+
+    set_field_just(field[0], JUSTIFY_CENTER); /* Center Justification */
+    set_field_buffer(field[0], 0, "This is a static Field"); 
+    /* Initialize the field  */
+    mvprintw(STARTY, STARTX - 10, "Field 1:");
+    mvprintw(STARTY + 2, STARTX - 10, "Field 2:");
+    refresh();
+
+    /* Loop through to get user requests */
+    while((ch = getch()) != KEY_F(1)) {
+        switch(ch) {
+            case KEY_DOWN:
+            /* Go to next field */
+            form_driver(my_form, REQ_NEXT_FIELD);
+            /* Go to the end of the present buffer */
+            /* Leaves nicely at the last character */
+            form_driver(my_form, REQ_END_LINE);
+            break;
+            case KEY_UP:
+            /* Go to previous field */
+            form_driver(my_form, REQ_PREV_FIELD);
+            form_driver(my_form, REQ_END_LINE);
+            break;
+            default:
+            /* If this is a normal character, it gets */
+            /* Printed                */    
+            form_driver(my_form, ch);
+            break;
+        }
+    }
+
+    /* Un post form and free the memory */
+    unpost_form(my_form);
+    free_form(my_form);
+    free_field(field[0]);
+    free_field(field[1]); 
+
+    endwin();
+
+    return 0;
+}
+```
+
+### 状态字段
+
+字段状态指定字段是否已被编辑。它最初被设置为FALSE，当用户输入一些东西并且数据缓冲区被修改时，它变成TRUE。因此，可以查询字段的状态，以确定它是否已被修改。以下功能可以协助这些操作。
+
+```c
+int set_field_status(FIELD *field,      /* field to alter */
+                   int status);         /* status to set */
+int field_status(FIELD *field);         /* fetch status of field */
+```
+
+最好在离开字段后才检查字段的状态，因为数据缓冲区可能还没有更新，因为验证仍然到期。为了保证返回正确的状态，可以调用`field_status()`
+1. 在字段的退出验证检查例程中
+2. 在字段或表单的初始化或终止钩子中，或者
+3. 在表单驱动程序处理完`REQ_VALIDATION`请求之后
+
+### 用户指针字段
+
+每个字段结构都包含一个指针，用户可以将其用于各种目的。它不受表单库的影响，用户可以将其用于任何目的。下面的函数设置和获取用户指针。
+
+```c
+int set_field_userptr(FIELD *field,   
+           char *userptr);      /* the user pointer you wish to associate */
+                                /* with the field    */
+
+char *field_userptr(FIELD *field);      /* fetch user pointer of the field */
+```
+
+### Variable大小字段
+
+如果您想要一个具有可变宽度的动态变化字段，这就是您想要充分利用的特性。这将允许用户输入比字段原始大小更多的数据，并让字段增长。根据字段方向，它将水平或垂直滚动以合并新数据。
+
+要使字段可动态增长，应关闭`O_STATIC`选项。这可以用
+
+```c
+field_opts_off(field_pointer, O_STATIC);
+```
+
+但是，让一块地无限生长通常是不可取的。您可以设置一个最大限制的增长领域与
+
+```c
+int set_max_field(FIELD *field,    /* Field on which to operate */
+                  int max_growth); /* maximum growth allowed for the field */
+```
+
+动态增长字段的字段信息可以通过
+
+```c
+int dynamic_field_info( FIELD *field,     /* Field on which to operate */
+            int   *prows,     /* number of rows will be filled in this */
+            int   *pcols,     /* number of columns will be filled in this*/
+            int   *pmax)      /* maximum allowable growth will be filled */
+                              /* in this */
+```
+
+尽管`field_info`工作正常，但建议使用此函数获取动态增长字段的适当属性。
+
+调用标准库例程`new_field`;高度设置为1的新字段将被定义为一行字段。高度大于1的新字段将被定义为多行字段。
+
+关闭`O_STATIC`的一行字段(动态可增长字段)将包含单个固定行，但如果用户输入的数据超过初始字段所能容纳的数据，则列的数量可能会增加。显示的列数将保持固定，额外的数据将水平滚动。
+
+关闭`O_STATIC`的多行字段(动态可增长字段)将包含固定数量的列，但如果用户输入的数据多于初始字段所容纳的数据，则行数可以增加。显示的行数将保持固定，额外的数据将垂直滚动。
+
+上面两段描述了动态增长字段的行为。表单库其他部分的行为方式如下所示:
+
+1. 如果`O_STATIC`选项关闭，并且没有为字段指定最大增长，那么字段选项`O_AUTOSKIP`将被忽略。目前，当用户输入字段的最后一个字符位置时，`O_AUTOSKIP`会自动生成一个`REQ_NEXT_FIELD`表单驱动程序请求。在没有指定最大增长的可增长字段上，没有最后一个字符位置。如果指定了最大增长，那么如果字段已经增长到最大大小，`O_AUTOSKIP`选项将正常工作。
+2. 如果选项`O_STATIC`被关闭，字段的校正将被忽略。目前，`set_field_just`可以用来对一行字段的内容进行`justicy_left`, `justicy_right`, `justicy_center`。根据定义，可增长的一行字段将水平增长和滚动，并且可能包含超出合理范围的数据。`field_just`的返回值将保持不变。
+3. 如果字段选项`O_STATIC`关闭，并且没有为字段指定最大增长，重载表单驱动程序请求`REQ_NEW_LINE`将以相同的方式操作，而不管`O_NL_OVERLOAD`表单选项。目前，如果表单选项`O_NL_OVERLOAD`是打开的，那么如果从字段的最后一行调用`REQ_NEW_LINE`，则隐式生成一个`REQ_NEXT_FIELD`。如果字段可以无限制地增长，则没有最后一行，因此`REQ_NEW_LINE`永远不会隐式生成`REQ_NEXT_FIELD`。如果指定了最大增长限制，并且打开了`O_NL_OVERLOAD`表单选项，则`REQ_NEW_LINE`仅在字段已增长到最大大小且用户位于最后一行时才隐式生成`REQ_NEXT_FIELD`。
+4. 库调用`dup_field`将照常工作;它将复制字段，包括当前缓冲区大小和被复制字段的内容。任何指定的最大增长也将被复制。
+5. 标准库调用`link_field`将照常工作;它将复制所有字段属性，并与被链接的字段共享缓冲区。如果`O_STATIC`字段选项随后被一个字段共享缓冲区更改，那么当试图向字段中输入比缓冲区当前持有的数据更多的数据时，系统的反应将取决于当前字段中该选项的设置。
+6. 标准库调用`field_info`将照常工作;变量nrow将包含对`new_field`的原始调用的值。用户应该使用上面描述的`dynamic_field_info`来查询缓冲区的当前大小。
+
+只有在解释了表单驱动程序之后，上面的一些观点才有意义。我们将在接下来的几节中讨论这个问题。
+
+### 表格界面
+
+表单窗口的概念与菜单窗口非常相似。每个表单都与一个主窗口和一个子窗口相关联。表单主窗口显示任何相关的标题或边框或任何用户希望的内容。然后子窗口包含所有字段，并根据它们的位置显示它们。这就提供了非常容易地操纵花哨形式显示的灵活性。
+
+因为这与菜单窗口非常相似，所以我只提供了一个例子，不做太多解释。它们的功能相似，工作方式相同。
+
+```c
+#include <form.h>
+
+void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color);
+
+int main()
+{
+    FIELD *field[3];
+    FORM  *my_form;
+    WINDOW *my_form_win;
+    int ch, rows, cols;
+
+    /* Initialize curses */
+    initscr();
+    start_color();
+    cbreak();
+    noecho();
+    keypad(stdscr, TRUE);
+
+    /* Initialize few color pairs */
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+
+    /* Initialize the fields */
+    field[0] = new_field(1, 10, 6, 1, 0, 0);
+    field[1] = new_field(1, 10, 8, 1, 0, 0);
+    field[2] = NULL;
+
+    /* Set field options */
+    set_field_back(field[0], A_UNDERLINE);
+    field_opts_off(field[0], O_AUTOSKIP); /* Don't go to next field when this */
+    /* Field is filled up         */
+    set_field_back(field[1], A_UNDERLINE); 
+    field_opts_off(field[1], O_AUTOSKIP);
+
+    /* Create the form and post it */
+    my_form = new_form(field);
+
+    /* Calculate the area required for the form */
+    scale_form(my_form, &rows, &cols);
+
+    /* Create the window to be associated with the form */
+    my_form_win = newwin(rows + 4, cols + 4, 4, 4);
+    keypad(my_form_win, TRUE);
+
+    /* Set main window and sub window */
+    set_form_win(my_form, my_form_win);
+    set_form_sub(my_form, derwin(my_form_win, rows, cols, 2, 2));
+
+    /* Print a border around the main window and print a title */
+    box(my_form_win, 0, 0);
+    print_in_middle(my_form_win, 1, 0, cols + 4, "My Form", COLOR_PAIR(1));
+
+    post_form(my_form);
+    wrefresh(my_form_win);
+
+    mvprintw(LINES - 2, 0, "Use UP, DOWN arrow keys to switch between fields");
+    refresh();
+
+    /* Loop through to get user requests */
+    while((ch = wgetch(my_form_win)) != KEY_F(1)) {
+        switch(ch) {
+            case KEY_DOWN:
+            /* Go to next field */
+            form_driver(my_form, REQ_NEXT_FIELD);
+            /* Go to the end of the present buffer */
+            /* Leaves nicely at the last character */
+            form_driver(my_form, REQ_END_LINE);
+            break;
+            case KEY_UP:
+            /* Go to previous field */
+            form_driver(my_form, REQ_PREV_FIELD);
+            form_driver(my_form, REQ_END_LINE);
+            break;
+            default:
+            /* If this is a normal character, it gets */
+            /* Printed                */    
+            form_driver(my_form, ch);
+            break;
+        }
+    }
+
+    /* Un post form and free the memory */
+    unpost_form(my_form);
+    free_form(my_form);
+    free_field(field[0]);
+    free_field(field[1]); 
+
+    endwin();
+    return 0;
+}
+
+void print_in_middle(WINDOW *win, int starty, int startx, int width, char *string, chtype color)
+{   
+    int length, x, y;
+    float temp;
+
+    if(win == NULL)
+        win = stdscr;
+    getyx(win, y, x);
+    if(startx != 0)
+        x = startx;
+    if(starty != 0)
+        y = starty;
+    if(width == 0)
+        width = 80;
+
+    length = strlen(string);
+    temp = (width - length)/ 2;
+    x = startx + (int)temp;
+    wattron(win, color);
+    mvwprintw(win, y, x, "%s", string);
+    wattroff(win, color);
+    refresh();
+}
+```
+
+### 字段验证
+
+默认情况下，字段将接受用户输入的任何数据。可以将验证附加到字段。然后，当该字段包含与验证类型不匹配的数据时，用户试图离开该字段的任何尝试都将失败。某些验证类型还在字段中每次输入字符时进行字符有效性检查。
+
+可以使用以下函数将验证附加到字段。
+
+```c
+int set_field_type(FIELD *field,          /* field to alter */
+                   FIELDTYPE *ftype,      /* type to associate */
+                   ...);                  /* additional arguments*/
+```
+
+设置后，可以使用该字段的验证类型进行查询
+
+```c
+FIELDTYPE *field_type(FIELD *field);      /* field to query */
+```
+
+表单驱动程序仅在最终用户输入数据时验证字段中的数据。时不发生验证
+
+- 应用程序通过调用`set_field_buffer`来更改字段值。
+- 链接的字段值是间接改变的——通过改变它们链接到的字段
+
+下面是预定义的验证类型。您还可以指定自定义验证，尽管这有点棘手和麻烦。
+
+#### TYPE\_ALPHA
+
+此字段类型接受字母数据;没有空格，没有数字，没有特殊字符(在字符输入时检查)。它的设置为:
+
+```c
+int set_field_type(FIELD *field,          /* field to alter */
+                   TYPE_ALPHA,            /* type to associate */
+                   int width);            /* maximum width of field */
+```
+
+width参数设置数据的最小宽度。用户必须输入至少宽度的字符数才能离开字段。通常你会把这个设置为字段宽度;如果它大于字段宽度，验证检查将始终失败。最小宽度为零使得字段补全是可选的。
+
+#### TYPE\_ALNUM
+
+此字段类型接受字母数据和数字;没有空格，没有特殊字符(在字符输入时检查)。它的设置为:
+
+```c
+int set_field_type(FIELD *field,          /* field to alter */
+                   TYPE_ALNUM,            /* type to associate */
+                   int width);            /* maximum width of field */
+```
+
+width参数设置数据的最小宽度。与`TYPE_ALPHA`一样，通常你需要将其设置为字段宽度;如果它大于字段宽度，验证检查将始终失败。最小宽度为零使得字段补全是可选的。
+
+#### TYPE\_ENUM
+
+此类型允许您将字段的值限制为指定的字符串值集(例如，美国各州的两个字母邮政编码)。它的设置为:
+
+```c
+int set_field_type(FIELD *field,          /* field to alter */
+                   TYPE_ENUM,             /* type to associate */
+                   char **valuelist;      /* list of possible values */
+                   int checkcase;         /* case-sensitive? */
+                   int checkunique);      /* must specify uniquely? */
+```
+
+valuelist参数必须指向以null结束的有效字符串列表。checkcase参数如果为真，则与字符串区分大小写进行比较。
+
+当用户退出TYPE_ENUM字段时，验证过程尝试将缓冲区中的数据填充为有效项。如果输入了完整的选择字符串，它当然是有效的。但是也可以输入一个有效字符串的前缀并为您完成它。
+
+缺省情况下，如果输入的前缀在字符串列表中匹配了一个以上的值，则从第一个匹配的值开始补全。但是checkunique参数如果为真，则要求前缀匹配是唯一的，以便有效。
+
+REQ_NEXT_CHOICE和REQ_PREV_CHOICE输入请求对于这些字段特别有用。
+
+#### TYPE_INTEGER
+
+此字段类型接受一个整数。其设置如下:
+
+```c
+int set_field_type(FIELD *field,          /* field to alter */
+                   TYPE_INTEGER,          /* type to associate */
+                   int padding,           /* # places to zero-pad to */
+                   int vmin, int vmax);   /* valid range */
+```
+
+有效字符由可选的前导减号和数字组成。在退出时执行范围检查。如果范围最大值小于或等于最小值，则忽略范围。
+
+如果值通过了范围检查，它将填充尽可能多的前导零数字，以满足填充参数。
+
+TYPE_INTEGER值缓冲区可以用C库函数atoi(3)方便地解释。
+
+#### TYPE_NUMERIC
+
+此字段类型接受十进制数。其设置如下:
+
+```c
+int set_field_type(FIELD *field,          /* field to alter */
+                   TYPE_NUMERIC,          /* type to associate */
+                   int padding,           /* # places of precision */
+                   int vmin, int vmax);   /* valid range */
+```
+
+有效字符由可选的前导减号和数字组成。可能还包括一个小数点。在退出时执行范围检查。如果范围最大值小于或等于最小值，则忽略范围。
+
+如果值通过了范围检查，它将填充尽可能多的尾随零数字，以满足填充参数。
+
+TYPE_NUMERIC值缓冲区可以用C库函数atof(3)方便地解释。
+
+#### TYPE_REHEXP
+
+此字段类型接受匹配正则表达式的数据。其设置如下:
+
+```c
+int set_field_type(FIELD *field,          /* field to alter */
+                   TYPE_REGEXP,           /* type to associate */
+                   char *regexp);         /* expression to match */
+```
+
+正则表达式的语法是regcomp(3)。正则表达式匹配检查在退出时执行。
+
+### 表单驱动——表单系统主力军
+
+和菜单系统一样，form_driver()在表单系统中扮演着非常重要的角色。对表单系统的所有类型的请求都应该通过form_driver()过滤。
+
+```c
+int form_driver(FORM *form,     /* form on which to operate     */
+                int request)    /* form request code         */
+```
+
+正如您已经看到的上面的一些示例，您必须在循环中寻找用户输入，然后决定它是字段数据还是表单请求。然后表单请求被传递给form_driver()来完成这项工作。
+
+请求大致可以分为以下几类。下面解释不同的请求及其用法:
+
+### 页面导航请求 
+
+这些请求导致页面级的表单移动，触发新表单屏幕的显示。一个表单可以由多个页面组成。如果您有一个包含许多字段和逻辑部分的大表单，那么您可以将表单划分为页面。函数set_new_page()在指定的字段处设置一个新页面。
+
+```c
+int set_new_page(FIELD *field,/* Field at which page break to be set or unset */
+         bool new_page_flag); /* should be TRUE to put a break */
+```
+
+下面的请求允许您移动到不同的页面
+
+- REQ_NEXT_PAGE 移动到下一个表单页面。
+- REQ_PREV_PAGE 移动到上一个表单页面。
+- REQ_FIRST_PAGE 移动到第一个表单页面。
+- REQ_LAST_PAGE 移动到最后一个表单页面。
+
+这些请求将列表视为循环的;也就是说，从最后一页的REQ_NEXT_PAGE到第一页，从第一页的REQ_PREV_PAGE到最后一页。
+
+### 字段内导航请求
+
+- REQ_NEXT_FIELD 移动到下一个字段。
+- REQ_PREV_FIELD 移动到上一个字段。
+- REQ_FIRST_FIELD 移动到第一个字段。
+- REQ_LAST_FIELD 移动到最后一个字段。
+- REQ_SNEXT_FIELD 移动到已排序的下一个字段。
+- REQ_SPREV_FIELD 移动到排序前一个字段。
+- REQ_SFIRST_FIELD REQ_SFIRST_FIELD移动到排序的第一个字段。
+- REQ_SLAST_FIELD移动到最后一个排序字段。
+- REQ_LEFT_FIELD 向左移动到字段。
+- REQ_RIGHT_FIELD 右移到字段。
+- REQ_UP_FIELD上移到field。
+- REQ_DOWN_FIELD 向下移动到字段。
+
+这些请求将页面上的字段列表作为循环处理;也就是说，从最后一个字段的REQ_NEXT_FIELD到第一个字段，从第一个字段的REQ_PREV_FIELD到最后一个字段。这些(以及REQ_FIRST_FIELD和REQ_LAST_FIELD请求)字段的顺序就是表单数组中字段指针的顺序(由new_form()或set_form_fields()设置)
+
+也可以遍历字段，就像它们按照屏幕位置顺序排序一样，因此序列从左到右，从上到下。为此，使用第二组4个排序移动请求。
+
+最后，还可以使用上、下、右、左的可视方向在字段之间移动。要实现这一点，请使用第三组请求。但是请注意，表单用于这些请求的位置是其左上角。
+
+例如，假设您有一个多行字段B，两个单行字段a和C与B在同一行，a在B的左边，C在B的右边。只有当a、B和C共享相同的第一行时，a的REQ_MOVE_RIGHT才会转到B;否则它将跳过B到C。
+
+
+These requests drive movement of the edit cursor within the currently selected field.
+
+    REQ_NEXT_CHAR Move to next character.
+
+    REQ_PREV_CHAR Move to previous character.
+
+    REQ_NEXT_LINE Move to next line.
+
+    REQ_PREV_LINE Move to previous line.
+
+    REQ_NEXT_WORD Move to next word.
+
+    REQ_PREV_WORD Move to previous word.
+
+    REQ_BEG_FIELD Move to beginning of field.
+
+    REQ_END_FIELD Move to end of field.
+
+    REQ_BEG_LINE Move to beginning of line.
+
+    REQ_END_LINE Move to end of line.
+
+    REQ_LEFT_CHAR Move left in field.
+
+    REQ_RIGHT_CHAR Move right in field.
+
+    REQ_UP_CHAR Move up in field.
+
+    REQ_DOWN_CHAR Move down in field. 
+
+Each word is separated from the previous and next characters by whitespace. The commands to move to beginning and end of line or field look for the first or last non-pad character in their ranges.
+18.6.4. Scrolling Requests
+
+Fields that are dynamic and have grown and fields explicitly created with offscreen rows are scrollable. One-line fields scroll horizontally; multi-line fields scroll vertically. Most scrolling is triggered by editing and intra-field movement (the library scrolls the field to keep the cursor visible). It is possible to explicitly request scrolling with the following requests:
+
+    REQ_SCR_FLINE Scroll vertically forward a line.
+
+    REQ_SCR_BLINE Scroll vertically backward a line.
+
+    REQ_SCR_FPAGE Scroll vertically forward a page.
+
+    REQ_SCR_BPAGE Scroll vertically backward a page.
+
+    REQ_SCR_FHPAGE Scroll vertically forward half a page.
+
+    REQ_SCR_BHPAGE Scroll vertically backward half a page.
+
+    REQ_SCR_FCHAR Scroll horizontally forward a character.
+
+    REQ_SCR_BCHAR Scroll horizontally backward a character.
+
+    REQ_SCR_HFLINE Scroll horizontally one field width forward.
+
+    REQ_SCR_HBLINE Scroll horizontally one field width backward.
+
+    REQ_SCR_HFHALF Scroll horizontally one half field width forward.
+
+    REQ_SCR_HBHALF Scroll horizontally one half field width backward. 
+
+For scrolling purposes, a page of a field is the height of its visible part.
+18.6.5. Editing Requests
+
+When you pass the forms driver an ASCII character, it is treated as a request to add the character to the field's data buffer. Whether this is an insertion or a replacement depends on the field's edit mode (insertion is the default.
+
+The following requests support editing the field and changing the edit mode:
+
+    REQ_INS_MODE Set insertion mode.
+
+    REQ_OVL_MODE Set overlay mode.
+
+    REQ_NEW_LINE New line request (see below for explanation).
+
+    REQ_INS_CHAR Insert space at character location.
+
+    REQ_INS_LINE Insert blank line at character location.
+
+    REQ_DEL_CHAR Delete character at cursor.
+
+    REQ_DEL_PREV Delete previous word at cursor.
+
+    REQ_DEL_LINE Delete line at cursor.
+
+    REQ_DEL_WORD Delete word at cursor.
+
+    REQ_CLR_EOL Clear to end of line.
+
+    REQ_CLR_EOF Clear to end of field.
+
+    REQ_CLR_FIELD Clear entire field. 
+
+REQ_NEW_LINE和REQ_DEL_PREV请求的行为很复杂，部分由一对表单选项控制。当游标位于字段的开头或字段的最后一行时，会触发特殊情况。
+
+首先，我们考虑REQ_NEW_LINE:
+
+REQ_NEW_LINE在插入模式下的正常行为是在编辑游标的位置打断当前行，在游标之后插入当前行的部分，作为跟随当前的新行，并将游标移动到新行的开头(您可以认为这是在字段缓冲区中插入换行符)。
+
+REQ_NEW_LINE在叠加模式下的正常行为是清除当前行从编辑光标到行尾的位置。然后将光标移动到下一行的开头。
+
+但是，字段开头或字段最后一行的REQ_NEW_LINE将执行REQ_NEXT_FIELD。O_NL_OVERLOAD选项关闭，此特殊动作被禁用。
+
+现在，让我们考虑REQ_DEL_PREV:
+
+REQ_DEL_PREV的正常行为是删除前一个字符。如果插入模式是打开的，并且光标位于一行的开头，并且该行上的文本将与前一行相匹配，那么它会将当前行的内容追加到前一行并删除当前行(您可以将此视为从字段缓冲区中删除换行符)。
+
+但是，字段开头的REQ_DEL_PREV被视为REQ_PREV_FIELD。
+
+如果O_BS_OVERLOAD选项被关闭，这个特殊的动作将被禁用，表单驱动程序只返回E_REQUEST_DENIED。
+
+### 按顺序请求
+
+如果你的字段类型是有序的，并且有相关的函数来从给定的值中获取该类型的下一个和上一个值，有一些请求可以将该值获取到字段缓冲区:
+
+- REQ_NEXT_CHOICE 将当前值的后继值放入缓冲区。
+- REQ_PREV_CHOICE 将当前值的前任值放在缓冲区中。
+
+在内置字段类型中，只有TYPE_ENUM具有内置的后继函数和前任函数。当您定义自己的字段类型(请参阅自定义验证类型)时，您可以关联我们自己的排序函数。
+
+### 程序命令
+
+表单请求表示为curses值大于KEY_MAX且小于或等于常量MAX_COMMAND的整数。在这个范围内的值将被form_driver()忽略。这可以被应用程序用于任何目的。它可以被视为应用程序特定的操作，并采取相应的操作。
+
+## ncurses 工具和窗口库
+
+现在，您已经看到了ncurses及其姐妹库的功能，您可以卷起袖子，为一个大量操纵屏幕的项目做准备了。但是等等. .在普通的ncurses中编写和维护复杂的GUI小部件，甚至使用附加的库都是相当困难的。有一些现成的工具和小部件库，可以用来代替编写自己的小部件。您可以使用其中的一些，从代码中获取想法，甚至扩展它们。
+
+### CDK(curses Development Kit)
+
+用作者的话来说，CDK代表“curses开发工具包”，它目前包含21个准备使用的小部件，以促进全屏curses程序的快速开发。
+
+该工具包提供了一些有用的小部件，可以直接在程序中使用。它写得很好，文档也很好。examples目录中的示例对于初学者来说是一个很好的开始。CDK可以从http://invisible-island.net/cdk/下载。按照README文件中的说明安装它。
+
+### Widget List
+
+下面是cdk提供的小部件列表及其描述。
+
+|Widget类型|描述|
+|---|---|
+|`Alphalist`|允许用户从单词列表中选择属性来缩小搜索列表的范围所需单词的几个字符。|
+|`Buttonbox`|创建多按钮widget|
+|`Calendar`|创建日历窗口|
+|`Dialog`| 用消息提示用户，而用户可以从提供的按钮中选择答案。|
+|`Entry`|允许用户输入|
+|`File Selector`|从Cdk基本小部件构建的文件选择器。这示例显示如何创建更复杂的小部件使用Cdk小部件库。|
+|`Graph`|绘制图形|
+|`Histogram`||
+|`Item List`|创建一个弹出字段，允许用户进行选择在一个小领域的几个选择之一。非常有用的比如星期几或月份的名称。|
+|`Label`|在弹出框中显示消息，或者标签可以是被视为屏幕的一部分。|
+|`Marquee`|在滚动字幕中显示消息。|
+|`Matrix`|创建一个复杂的矩阵与许多选项|
+|`Menu`|创建一个下拉菜单界面。|
+|`Multiple Line Entry`|多行输入字段。非常有用的对于长字段。(像描述字段)|
+|`Radio List`|创建单选按钮列表。|
+|`Scale`|创建数字刻度。用于允许用户选择一个数值，并将其限制在值。|
+|`Scrolling List`|创建一个滚动列表/菜单列表。|
+|`Scrolling Window`|创建滚动日志文件查看器。可以添加信息进入窗口，而它的运行。一个用于显示进度的好小部件某物(类似于控制台窗口)|
+|`Selection List`|创建多个选项选择列表。|
+|`Slider`|类似于缩放小部件，此小部件提供了一个可视滑条来表示数值。|
+|`Template`|创建字符敏感的输入字段的位置。用于预先格式化的字段，如日期和电话号码。|
+|`Viewer`|这是一个文件/信息查看器。非常有用的当你需要显示大量信息时。|
+
+Thomas Dickey在最近的版本中修改了一些小部件。
 
