@@ -3,7 +3,7 @@ title: "ncurses API"
 date: 2023-02-06T22:39:18+08:00
 tags: ['ncurses']
 categories: ['ncurses', 'linux']
-draft: true
+draft: false
 ---
 
 ## add_wch
@@ -1153,3 +1153,1101 @@ int mcprint(char *data, int len);
 
 > 请注意，mcprint代码无法对打印机进行流控制，也无法知道它有多少缓冲。您的应用程序负责将对打印机的写入速率保持在其连续吞吐率以下(通常约为其标称cps等级的一半)。点阵打印机和每分钟6页的激光通常可以处理80cps，所以一个好的保守的经验法则是在输出每80个字符的行之后睡一秒钟。
 
+## printw
+```c
+#include <curses.h>
+
+int printw(const char *fmt, ...);
+int wprintw(WINDOW *win, const char *fmt, ...);
+int mvprintw(int y, int x, const char *fmt, ...);
+int mvwprintw(WINDOW *win, int y, int x, const char *fmt, ...);
+int vw_printw(WINDOW *win, const char *fmt, va_list varglist);
+
+/* obsolete */
+int vwprintw(WINDOW *win, const char *fmt, va_list varglist);
+```
+
+## refresh
+```c
+#include <curses.h>
+
+int refresh(void);
+int wrefresh(WINDOW *win);
+int wnoutrefresh(WINDOW *win);
+int doupdate(void);
+
+int redrawwin(WINDOW *win);
+int wredrawln(WINDOW *win, int beg_line, int num_lines);
+```
+
+## scanw
+
+```c
+#include <curses.h>
+
+int scanw(const char *fmt, ...);
+int wscanw(WINDOW *win, const char *fmt, ...);
+int mvscanw(int y, int x, const char *fmt, ...);
+int mvwscanw(WINDOW *win, int y, int x, const char *fmt, ...);
+
+int vw_scanw(WINDOW *win, const char *fmt, va_list varglist);
+
+/* obsolete */
+int vwscanw(WINDOW *win, const char *fmt, va_list varglist);
+```
+
+## scr_dump
+
+```c
+#include <curses.h>
+
+int scr_dump(const char *filename);
+int scr_restore(const char *filename);
+int scr_init(const char *filename);
+int scr_set(const char *filename);
+```
+
+## scroll
+
+```c
+#include <curses.h>
+
+int scroll(WINDOW *win);
+
+int scrl(int n);
+int wscrl(WINDOW *win, int n);
+```
+scroll例程将窗口向上滚动一行。这涉及到移动窗口数据结构中的行。作为一种优化，如果窗口的滚动区域是整个屏幕，则可以同时滚动物理屏幕。
+
+对于正n, scrl和wscrl例程将窗口向上滚动n行(第i+n行变成第i行);否则将窗口向下滚动n行。这涉及到移动窗口字符图像结构中的行。当前光标位置不变。
+
+为了使这些功能工作，滚动必须通过scrollok启用。
+
+## slk
+
+```c
+#include <curses.h>
+
+int slk_init(int fmt);
+
+int slk_set(int labnum, const char *label, int fmt);
+int slk_wset(int labnum, const wchar_t *label, int fmt);
+
+char *slk_label(int labnum);
+
+int slk_refresh(void);
+int slk_noutrefresh(void);
+int slk_clear(void);
+int slk_restore(void);
+int slk_touch(void);
+
+int slk_attron(const chtype attrs);
+int slk_attroff(const chtype attrs);
+int slk_attrset(const chtype attrs);
+int slk_attr_on(attr_t attrs, void* opts);
+int slk_attr_off(const attr_t attrs, void * opts);
+int slk_attr_set(const attr_t attrs, short pair, void* opts);
+/* extension */
+attr_t slk_attr(void);
+
+int slk_color(short pair);
+/* extension */
+int extended_slk_color(int pair);
+```
+
+`slk*`函数操作存在于许多终端上的软功能键标签集。对于那些没有软标签的终端，curses接管了stdscr的底部边框线，减小了stdscr的大小和变量LINES。cruses有八个标签，每个标签最多八个字符。除此之外，ncurses实现还支持一种模式，它模拟12个标签，每个标签最多5个字符。这对于类pc的终端用户设备很有用。Ncurses通过接管屏幕底部的两行来模拟这种模式。
+
+## sp_funcs
+
+```c
+#include <curses.h>
+
+int alloc_pair_sp(SCREEN* sp, int fg, int bg);
+int assume_default_colors_sp(SCREEN* sp, int fg, int bg);
+int baudrate_sp(SCREEN* sp);
+int beep_sp(SCREEN* sp);
+bool can_change_color_sp(SCREEN* sp);
+int cbreak_sp(SCREEN* sp);
+int color_content_sp(SCREEN* sp, short color, short* r, short* g, short* b);
+int curs_set_sp(SCREEN* sp, int visibility);
+int def_prog_mode_sp(SCREEN* sp);
+int def_shell_mode_sp(SCREEN* sp);
+
+int define_key_sp(SCREEN* sp, const char * definition, int keycode);
+int delay_output_sp(SCREEN* sp, int ms);
+int doupdate_sp(SCREEN* sp);
+int echo_sp(SCREEN* sp);
+int endwin_sp(SCREEN* sp);
+char erasechar_sp(SCREEN* sp);
+int erasewchar_sp(SCREEN* sp, wchar_t *ch);
+int extended_color_content_sp(SCREEN * sp, int color, int * r, int * g, int * b);
+int extended_pair_content_sp(SCREEN* sp, int pair, int * fg, int * bg);
+int extended_slk_color_sp(SCREEN* sp, int pair);
+
+void filter_sp(SCREEN* sp);
+int find_pair_sp(SCREEN* sp, int fg, int bg);
+int flash_sp(SCREEN* sp);
+int flushinp_sp(SCREEN* sp);
+int free_pair_sp(SCREEN* sp, int pair);
+int get_escdelay_sp(SCREEN* sp);
+int getmouse_sp(SCREEN* sp, MEVENT* event);
+WINDOW* getwin_sp(SCREEN* sp, FILE* filep);
+int halfdelay_sp(SCREEN* sp, int tenths);
+bool has_colors_sp(SCREEN* sp);
+
+bool has_ic_sp(SCREEN* sp);
+bool has_il_sp(SCREEN* sp);
+int has_key_sp(SCREEN* sp, int ch);
+bool has_mouse_sp(SCREEN* sp);
+int init_color_sp(SCREEN* sp, short color, short r, short g, short b);
+int init_extended_color_sp(SCREEN* sp, int color, int r, int g, int b);
+int init_extended_pair_sp(SCREEN* sp, int pair, int fg, int bg);
+int init_pair_sp(SCREEN* sp, short pair, short fg, short bg);
+int intrflush_sp(SCREEN* sp, WINDOW* win, bool bf);
+bool is_term_resized_sp(SCREEN* sp, int lines, int columns);
+
+bool isendwin_sp(SCREEN* sp);
+int key_defined_sp(SCREEN* sp, const char *definition);
+char* keybound_sp(SCREEN* sp, int keycode, int count);
+NCURSES_CONST char * keyname_sp(SCREEN* sp, int c);
+int keyok_sp(SCREEN* sp, int keycode, bool enable);
+char killchar_sp(SCREEN* sp);
+int killwchar_sp(SCREEN* sp, wchar_t *ch);
+char* longname_sp(SCREEN* sp);
+int mcprint_sp(SCREEN* sp, char *data, int len);
+int mouseinterval_sp(SCREEN* sp, int erval);
+
+mmask_t mousemask_sp(SCREEN* sp, mmask_t newmask, mmask_t *oldmask);
+int mvcur_sp(SCREEN* sp, int oldrow, int oldcol, int newrow, int newcol);
+int napms_sp(SCREEN* sp, int ms);
+WINDOW* newpad_sp(SCREEN* sp, int nrows, int ncols);
+SCREEN* new_prescr(void);
+SCREEN* newterm_sp(SCREEN* sp, const char *type, FILE *outfd, FILE *infd);
+WINDOW* newwin_sp(SCREEN* sp, int nlines, int ncols, int begin_y, int begin_x);
+int nl_sp(SCREEN* sp);
+int nocbreak_sp(SCREEN* sp);
+int noecho_sp(SCREEN* sp);
+
+void nofilter_sp(SCREEN* sp);
+int nonl_sp(SCREEN* sp);
+void noqiflush_sp(SCREEN* sp);
+int noraw_sp(SCREEN* sp);
+int pair_content_sp(SCREEN* sp, short pair, short* fg, short* bg);
+void qiflush_sp(SCREEN* sp);
+int raw_sp(SCREEN* sp);
+int reset_prog_mode_sp(SCREEN* sp);
+void reset_color_pairs_sp(SCREEN* sp);
+int reset_shell_mode_sp(SCREEN* sp);
+
+int resetty_sp(SCREEN* sp);
+int resize_term_sp(SCREEN* sp, int lines, int columns);
+int resizeterm_sp(SCREEN* sp, int lines, int columns);
+int ripoffline_sp(SCREEN* sp, int line, int (*init)(WINDOW* win, int fmt));
+int savetty_sp(SCREEN* sp);
+int scr_init_sp(SCREEN* sp, const char *filename);
+int scr_restore_sp(SCREEN* sp, const char *filename);
+int scr_set_sp(SCREEN* sp, const char *filename);
+int set_escdelay_sp(SCREEN* sp, int ms);
+int set_tabsize_sp(SCREEN* sp, int cols);
+
+int slk_attr_set_sp(SCREEN* sp, const attr_t attrs, short pair, void*opts);
+int slk_attrset_sp(SCREEN* sp, const chtype a);
+int slk_attroff_sp(SCREEN* sp, const chtype a);
+int slk_attron_sp(SCREEN* sp, const chtype a);
+attr_t slk_attr_sp(SCREEN* sp);
+int slk_clear_sp(SCREEN* sp);
+int slk_color_sp(SCREEN* sp, short pair);
+int slk_init_sp(SCREEN* sp, int fmt);
+char* slk_label_sp(SCREEN* sp, int labnum);
+int slk_noutrefresh_sp(SCREEN* sp);
+
+int slk_refresh_sp(SCREEN* sp);
+int slk_restore_sp(SCREEN* sp);
+int slk_set_sp(SCREEN* sp, int labnum, const char * label, int fmt);
+int slk_touch_sp(SCREEN* sp);
+int start_color_sp(SCREEN* sp);
+attr_t term_attrs_sp(SCREEN* sp);
+chtype termattrs_sp(SCREEN* sp);
+char* termname_sp(SCREEN* sp);
+int typeahead_sp(SCREEN* sp, int fd);
+int unget_wch_sp(SCREEN* sp, const wchar_t wch);
+
+int ungetch_sp(SCREEN* sp, int ch);
+int ungetmouse_sp(SCREEN* sp,MEVENT * event);
+int use_default_colors_sp(SCREEN* sp);
+void use_env_sp(SCREEN* sp, bool bf);
+int use_legacy_coding_sp(SCREEN* sp, int level);
+void use_tioctl_sp(SCREEN *sp, bool bf);
+int vid_attr_sp(SCREEN* sp, attr_t attrs, short pair, void * opts);
+int vid_puts_sp(SCREEN* sp, attr_t attrs, short pair, void * opts, NCURSES_SP_OUTC putc);
+int vidattr_sp(SCREEN* sp, chtype attrs);
+int vidputs_sp(SCREEN* sp, chtype attrs, NCURSES_SP_OUTC putc);
+wchar_t* wunctrl_sp(SCREEN* sp, cchar_t *ch);
+
+#include <form.h>
+
+FORM* new_form_sp(SCREEN* sp, FIELD **fields);
+
+#include <menu.h>
+
+MENU* new_menu_sp(SCREEN* sp, ITEM **items);
+
+#include <panel.h>
+
+PANEL* ceiling_panel(SCREEN* sp);
+PANEL* ground_panel(SCREEN* sp);
+void update_panels_sp(SCREEN* sp);
+
+#include <term.h>
+
+int del_curterm_sp(SCREEN* sp, TERMINAL *oterm);
+int putp_sp(SCREEN* sp, const char *str);
+int restartterm_sp(SCREEN* sp, NCURSES_CONST char*term, int filedes, int *errret);
+TERMINAL* set_curterm_sp(SCREEN* sp, TERMINAL*nterm);
+int tgetent_sp(SCREEN* sp, char *bp, const char *name);
+int tgetflag_sp(SCREEN* sp, const char *capname);
+int tgetnum_sp(SCREEN* sp, const char *capname);
+char* tgetstr_sp(SCREEN* sp, const char *capname, char **area);
+char* tgoto_sp(SCREEN* sp, const char *capname, int col, int row);
+int tigetflag_sp(SCREEN* sp, const char *capname);
+int tigetnum_sp(SCREEN* sp, const char *capname);
+char* tigetstr_sp(SCREEN* sp, const char *capname);
+/* may instead use 9 long parameters */
+char* tparm_sp(SCREEN* sp, const char *str, ...);
+int tputs_sp(SCREEN* sp, const char *str, int affcnt, NCURSES_SP_OUTC putc);
+
+#include <unctrl.h>
+
+NCURSES_CONST char* unctrl_sp(SCREEN* sp, chtype c);
+```
+可以对该实现进行配置，以提供一组功能，从而提高管理多个屏幕的能力。该特性可以添加到ncurses支持的任何配置中;它添加了新的入口点，而不改变任何现有入口点的含义。
+
+## termattrs
+
+```c
+#include <curses.h>
+
+int baudrate(void);
+char erasechar(void);
+int erasewchar(wchar_t *ch);
+bool has_ic(void);
+bool has_il(void);
+char killchar(void);
+int killwchar(wchar_t *ch);
+char *longname(void);
+attr_t term_attrs(void);
+chtype termattrs(void);
+char *termname(void);
+```
+
+## termcap
+
+```c
+#include <curses.h>
+#include <term.h>
+
+extern char PC;
+extern char * UP;
+extern char * BC;
+extern short ospeed;
+
+int tgetent(char *bp, const char *name);
+int tgetflag(const char *id);
+int tgetnum(const char *id);
+char *tgetstr(const char *id, char **area);
+char *tgoto(const char *cap, int col, int row);
+int tputs(const char *str, int affcnt, int (*putc)(int));
+```
+这些例程是作为使用termcap库的程序的转换辅助而包含的。它们的参数是相同的，但是这些例程是使用terminfo数据库模拟的。因此，它们只能用于查询已经编译了terminfo条目的条目的功能。
+
+## terminfo
+
+```c
+#include <curses.h>
+#include <term.h>
+
+TERMINAL *cur_term;
+
+const char * const boolnames[];
+const char * const boolcodes[];
+const char * const boolfnames[];
+const char * const numnames[];
+const char * const numcodes[];
+const char * const numfnames[];
+const char * const strnames[];
+const char * const strcodes[];
+const char * const strfnames[];
+
+int setupterm(const char *term, int filedes, int *errret);
+TERMINAL *set_curterm(TERMINAL *nterm);
+int del_curterm(TERMINAL *oterm);
+int restartterm(const char *term, int filedes, int *errret);
+
+char *tparm(const char *str, ...);
+int tputs(const char *str, int affcnt, int (*putc)(int));
+int putp(const char *str);
+
+int vidputs(chtype attrs, int (*putc)(int));
+int vidattr(chtype attrs);
+int vid_puts(attr_t attrs, short pair, void *opts, int (*putc)(int));
+int vid_attr(attr_t attrs, short pair, void *opts);
+
+int mvcur(int oldrow, int oldcol, int newrow, int newcol);
+
+int tigetflag(const char *capname);
+int tigetnum(const char *capname);
+char *tigetstr(const char *capname);
+
+char *tiparm(const char *str, ...);
+```
+
+## threads
+
+```c
+#include <curses.h>
+
+typedef int (*NCURSES_WINDOW_CB)(WINDOW *, void *);
+typedef int (*NCURSES_SCREEN_CB)(SCREEN *, void *);
+
+int get_escdelay(void);
+int set_escdelay(int ms);
+int set_tabsize(int cols);
+
+int use_screen(SCREEN *scr, NCURSES_SCREEN_CB func, void *data);
+int use_window(WINDOW *win, NCURSES_WINDOW_CB func, void *data);
+```
+
+## touch 
+
+```c
+#include <curses.h>
+
+int touchline(WINDOW *win, int start, int count);
+
+int touchwin(WINDOW *win);
+int wtouchln(WINDOW *win, int y, int n, int changed);
+
+int untouchwin(WINDOW *win);
+
+bool is_linetouched(WINDOW *win, int line);
+bool is_wintouched(WINDOW *win);
+```
+
+## trace
+
+```c
+#include <curses.h>
+
+unsigned curses_trace(const unsigned param);
+
+void _tracef(const char *format, ...);
+
+char *_traceattr(attr_t attr);
+char *_traceattr2(int buffer, chtype ch);
+char *_tracecchar_t(const cchar_t *string);
+char *_tracecchar_t2(int buffer, const cchar_t *string);
+char *_tracechar(int ch);
+char *_tracechtype(chtype ch);
+char *_tracechtype2(int buffer, chtype ch);
+
+void _tracedump(const char *label, WINDOW *win);
+char *_nc_tracebits(void);
+char *_tracemouse(const MEVENT *event);
+
+/* deprecated */
+void trace(const unsigned int param);
+```
+
+## util
+
+```c
+#include <curses.h>
+
+const char *unctrl(chtype c);
+wchar_t *wunctrl(cchar_t *c);
+
+const char *keyname(int c);
+const char *key_name(wchar_t w);
+
+void filter(void);
+void nofilter(void);
+
+void use_env(bool f);
+void use_tioctl(bool f);
+
+int putwin(WINDOW *win, FILE *filep);
+WINDOW *getwin(FILE *filep);
+
+int delay_output(int ms);
+int flushinp(void);
+```
+
+## variables
+
+```c
+#include <curses.h>
+
+int COLOR_PAIRS;
+int COLORS;
+int COLS;
+int ESCDELAY;
+int LINES;
+int TABSIZE;
+WINDOW* curscr;
+WINDOW* newscr;
+WINDOW* stdscr;
+```
+
+## window
+
+```c
+#include <curses.h>
+
+WINDOW *newwin(int nlines, int ncols, int begin_y, int begin_x);
+int delwin(WINDOW *win);
+int mvwin(WINDOW *win, int y, int x);
+WINDOW *subwin(WINDOW *orig, int nlines, int ncols, int begin_y, int begin_x);
+WINDOW *derwin(WINDOW *orig, int nlines, int ncols, int begin_y, int begin_x);
+int mvderwin(WINDOW *win, int par_y, int par_x);
+WINDOW *dupwin(WINDOW *win);
+void wsyncup(WINDOW *win);
+int syncok(WINDOW *win, bool bf);
+void wcursyncup(WINDOW *win);
+void wsyncdown(WINDOW *win);
+```
+
+## default_color
+
+```c
+#include <curses.h>
+
+int use_default_colors(void);
+int assume_default_colors(int fg, int bg);
+```
+
+## define_key
+
+```c
+#include <curses.h>
+
+int define_key(const char *definition, int keycode);
+```
+
+## form_cursor
+
+```c
+#include <form.h>
+
+int pos_form_cursor(FORM *form);
+```
+
+## form_data
+
+```c
+#include <form.h>
+
+bool data_ahead(const FORM *form);
+bool data_behind(const FORM *form);
+```
+
+## form_driver
+
+```c
+#include <form.h>
+
+int form_driver(FORM *form, int c);
+int form_driver_w(FORM *form, int c, wchar_t wch);
+```
+
+## form_field_attributes
+
+```c
+#include <form.h>
+
+int set_field_fore(FIELD *field, chtype attr);
+chtype field_fore(const FIELD *field);
+
+int set_field_back(FIELD *field, chtype attr);
+chtype field_back(const FIELD *field);
+
+int set_field_pad(FIELD *field, int pad);
+int field_pad(const FIELD *field);
+```
+
+## form_field_buffer
+
+```c
+#include <form.h>
+
+int set_field_buffer(FIELD *field, int buf, const char *value);
+char *field_buffer(const FIELD *field, int buffer);
+
+int set_field_status(FIELD *field, bool status);
+bool field_status(const FIELD *field);
+
+int set_max_field(FIELD *field, int max);
+```
+
+## form_field_info
+
+```c
+#include <form.h>
+
+int field_info(const FIELD *field, int *rows, int *cols, int *frow, int *fcol, int *nrow, int *nbuf);
+
+int dynamic_field_info(const FIELD *field, int *rows, int *cols, int *max);
+```
+
+## form_field_just
+
+```c
+#include <form.h>
+
+int set_field_just(FIELD *field, int justification);
+int field_just(const FIELD *field);
+```
+
+## form_field_new
+
+```c
+#include <form.h>
+
+FIELD *new_field(int height, int width, int toprow, int leftcol, int offscreen, int nbuffers);
+FIELD *dup_field(FIELD *field, int toprow, int leftcol);
+FIELD *link_field(FIELD *field, int toprow, int leftcol);
+int free_field(FIELD *field);
+```
+
+## form_field_opts
+
+```c
+#include <form.h>
+
+int set_field_opts(FIELD *field, Field_Options opts);
+Field_Options field_opts(const FIELD *field);
+
+int field_opts_on(FIELD *field, Field_Options opts);
+int field_opts_off(FIELD *field, Field_Options opts);
+```
+
+## form_field_userptr
+
+```c
+#include <form.h>
+
+int set_field_userptr(FIELD *field, void *userptr);
+void *field_userptr(const FIELD *field);
+```
+
+## form_field_validation
+
+```c
+#include <form.h>
+
+void *field_arg(const FIELD *field);
+FIELDTYPE *field_type(const FIELD *field);
+int set_field_type(FIELD *field, FIELDTYPE *type, ...);
+
+/* predefined field types */
+FIELDTYPE *TYPE_ALNUM;
+FIELDTYPE *TYPE_ALPHA;
+FIELDTYPE *TYPE_ENUM;
+FIELDTYPE *TYPE_INTEGER;
+FIELDTYPE *TYPE_NUMERIC;
+FIELDTYPE *TYPE_REGEXP;
+FIELDTYPE *TYPE_IPV4;
+```
+
+## form_field
+
+```c
+#include <form.h>
+
+int set_form_fields(FORM *form, FIELD **fields);
+FIELD **form_fields(const FORM *form);
+int field_count(const FORM *form);
+int move_field(FIELD *field, int frow, int fcol);
+```
+
+## form_fieldtype
+
+```c
+#include <form.h>
+
+FIELDTYPE *new_fieldtype(bool (* const field_check)(FIELD *, const void *), bool (* const char_check)(int, const void *));
+int free_fieldtype(FIELDTYPE *fieldtype);
+
+int set_fieldtype_arg(FIELDTYPE *fieldtype, void *(* const make_arg)(va_list *), void *(* const copy_arg)(const void *), void  (* const free_arg)(void *));
+int set_fieldtype_choice(FIELDTYPE *fieldtype, bool (* const next_choice)(FIELD *, const void *), bool (* const prev_choice)(FIELD *, const void *));
+
+FIELDTYPE *link_fieldtype(FIELDTYPE *type1, FIELDTYPE *type2);
+```
+
+## form_hook
+
+```c
+#include <form.h>
+
+int set_field_init(FORM *form, Form_Hook func);
+Form_Hook field_init(const FORM *form);
+
+int set_field_term(FORM *form, Form_Hook func);
+Form_Hook field_term(const FORM *form);
+
+int set_form_init(FORM *form, Form_Hook func);
+Form_Hook form_init(const FORM *form);
+
+int set_form_term(FORM *form, Form_Hook func);
+Form_Hook form_term(const FORM *form);
+```
+
+## form_new_page
+
+```c
+#include <form.h>
+
+int set_new_page(FIELD *field, bool new_page_flag);
+bool new_page(const FIELD *field);
+```
+
+## form_new
+
+```c
+#include <form.h>
+
+FORM *new_form(FIELD **fields);
+int free_form(FORM *form);
+```
+
+## form_opts
+
+```c
+#include <form.h>
+
+int set_form_opts(FORM *form, Field_Options opts);
+Field_Options form_opts(const FORM *form);
+
+int form_opts_on(FORM *form, Field_Options opts);
+int form_opts_off(FORM *form, Field_Options opts);
+```
+
+## form_page
+
+```c
+#include <form.h>
+
+int set_current_field(FORM *form, FIELD *field);
+FIELD *current_field(const FORM *form);
+
+int unfocus_current_field(FORM *form);
+
+int set_form_page(FORM *form, int n);
+int form_page(const FORM *form);
+
+int field_index(const FIELD *field);
+```
+
+## form_post
+
+```c
+#include <form.h>
+
+int post_form(FORM *form);
+int unpost_form(FORM *form);
+```
+
+## form_requestname
+
+```c
+#include <form.h>
+
+const char *form_request_name(int request);
+int form_request_by_name(const char *name);
+```
+
+## form_userptr
+
+```c
+#include <form.h>
+
+int set_form_userptr(FORM *form, void *userptr);
+void* form_userptr(const FORM *form);
+```
+
+## form_variables
+
+```c
+#include <form.h>
+
+FIELDTYPE* TYPE_ALNUM;
+FIELDTYPE* TYPE_ALPHA;
+FIELDTYPE* TYPE_ENUM;
+FIELDTYPE* TYPE_INTEGER;
+FIELDTYPE* TYPE_IPV4;
+FIELDTYPE* TYPE_NUMERIC;
+FIELDTYPE* TYPE_REGEXP;
+```
+
+## form_win
+
+```c
+#include <form.h>
+
+int set_form_win(FORM *form, WINDOW *win);
+WINDOW *form_win(const FORM *form);
+
+int set_form_sub(FORM *form, WINDOW *sub);
+WINDOW *form_sub(const FORM *form);
+
+int scale_form(const FORM *form, int *rows, int *columns);
+```
+
+## key_Defined
+
+```c
+#include <curses.h>
+
+int key_defined(const char *definition);
+```
+
+## keybound
+
+```c
+#include <curses.h>
+
+char* keybound(int keycode, int count);
+```
+
+## keyok
+
+```c
+#include <curses.h>
+
+int keyok(int keycode, bool enable);
+```
+
+## legacy_coding
+
+```c
+#include <curses.h>
+
+int use_legacy_coding(int level);
+```
+
+## menu_attributes
+
+```c
+#include <menu.h>
+
+int set_menu_fore(MENU *menu, chtype attr);
+chtype menu_fore(const MENU *menu);
+
+int set_menu_back(MENU *menu, chtype attr);
+chtype menu_back(const MENU *menu);
+
+int set_menu_grey(MENU *menu, chtype attr);
+chtype menu_grey(const MENU *menu);
+
+int set_menu_pad(MENU *menu, int pad);
+int menu_pad(const MENU *menu);
+```
+
+## menu_cursor
+
+```c
+#include <menu.h>
+
+int pos_menu_cursor(const MENU *menu);
+```
+
+## menu_driver
+
+```c
+#include <menu.h>
+
+int menu_driver(MENU *menu, int c);
+```
+
+## menu_format
+
+```c
+#include <menu.h>
+
+int set_menu_format(MENU *menu, int rows, int cols);
+void menu_format(const MENU *menu, int *rows, int *cols);
+```
+
+## menu_hook
+
+```c
+#include <menu.h>
+
+int set_item_init(MENU *menu, Menu_Hook func);
+Menu_Hook item_init(const MENU *menu);
+
+int set_item_term(MENU *menu, Menu_Hook func);
+Menu_Hook item_term(const MENU *menu);
+
+int set_menu_init(MENU *menu, Menu_Hook func);
+Menu_Hook menu_init(const MENU *menu);
+
+int set_menu_term(MENU *menu, Menu_Hook func);
+Menu_Hook menu_term(const MENU *menu);
+```
+
+## menu_items
+
+```c
+#include <menu.h>
+
+int set_menu_items(MENU *menu, ITEM **items);
+ITEM **menu_items(const MENU *menu);
+int item_count(const MENU *menu);
+```
+
+## menu_mark
+
+```c
+#include <menu.h>
+
+int set_menu_mark(MENU *menu, const char *mark);
+const char *menu_mark(const MENU *menu);
+```
+
+## menu_new
+
+```c
+#include <menu.h>
+
+MENU *new_menu(ITEM **items);
+int free_menu(MENU *menu);
+```
+
+## menu_opts
+
+```c
+#include <menu.h>
+
+int set_menu_opts(MENU *menu, Menu_Options opts);
+Menu_Options menu_opts(const MENU *menu);
+
+int menu_opts_on(MENU *menu, Menu_Options opts);
+int menu_opts_off(MENU *menu, Menu_Options opts);
+```
+
+## menu_pattern
+
+```c
+#include <menu.h>
+
+int set_menu_pattern(MENU *menu, const char *pattern);
+char *menu_pattern(const MENU *menu);
+```
+
+## menu_post
+
+```c
+#include <menu.h>
+
+int post_menu(MENU *menu);
+int unpost_menu(MENU *menu);
+```
+
+## menu_requestname
+
+```c
+#include <menu.h>
+
+const char *menu_request_name(int request);
+int menu_request_by_name(const char *name);
+```
+
+## menu_spacing
+
+```c
+#include <menu.h>
+
+int set_menu_spacing(MENU *menu, int spc_description, int spc_rows, int spc_columns);
+int menu_spacing(const MENU *menu, int* spc_description, int* spc_rows, int* spc_columns);
+```
+
+## menu_userptr
+
+```c
+#include <menu.h>
+
+int set_menu_userptr(MENU *menu, void *userptr);
+void *menu_userptr(const MENU *menu);
+```
+
+## menu_win
+
+```c
+#include <menu.h>
+
+int set_menu_win(MENU *menu, WINDOW *win);
+WINDOW *menu_win(const MENU *menu);
+
+int set_menu_sub(MENU *menu, WINDOW *sub);
+WINDOW *menu_sub(const MENU *menu);
+
+int scale_menu(const MENU *menu, int *rows, int *columns);
+```
+
+## mitem_current
+
+```c
+#include <menu.h>
+
+int set_current_item(MENU *menu, ITEM *item);
+ITEM *current_item(const MENU *menu);
+
+int set_top_row(MENU *menu, int row);
+int top_row(const MENU *menu);
+
+int item_index(const ITEM *item);
+```
+
+## mitem_name
+
+```c
+#include <menu.h>
+
+const char *item_name(const ITEM *item);
+const char *item_description(const ITEM *item);
+```
+
+## mitem_new
+
+```c
+#include <menu.h>
+
+ITEM *new_item(const char *name, const char *description);
+int free_item(ITEM *item);
+```
+
+## mitem_opts
+
+```c
+#include <menu.h>
+
+int set_item_opts(ITEM *item, Item_Options opts);
+Item_Options item_opts(const ITEM *item);
+
+int item_opts_on(ITEM *item, Item_Options opts);
+int item_opts_off(ITEM *item, Item_Options opts);
+```
+
+## mitem_userptr
+
+```c
+#include <menu.h>
+
+int set_item_userptr(ITEM *item, void *userptr);
+void *item_userptr(const ITEM *item);
+```
+
+## mitem_value
+
+```c
+#include <menu.h>
+
+int set_item_value(ITEM *item, bool value);
+bool item_value(const ITEM *item);
+```
+
+## mitem_visible
+
+```c
+ #include <menu.h>
+
+bool item_visible(const ITEM *item);
+```
+
+## new_pair
+
+```c
+#include <curses.h>
+
+int alloc_pair(int fg, int bg);
+int find_pair(int fg, int bg);
+int free_pair(int pair);
+```
+
+## panel
+
+```c
+#include <panel.h>
+
+cc [flags] sourcefiles -lpanel -lncurses
+
+PANEL *new_panel(WINDOW *win);
+
+int bottom_panel(PANEL *pan);
+int top_panel(PANEL *pan);
+int show_panel(PANEL *pan);
+void update_panels(void);
+int hide_panel(PANEL *pan);
+
+WINDOW *panel_window(const PANEL *pan);
+int replace_panel(PANEL *pan, WINDOW *window);
+int move_panel(PANEL *pan, int starty, int startx);
+int panel_hidden(const PANEL *pan);
+
+PANEL *panel_above(const PANEL *pan);
+PANEL *panel_below(const PANEL *pan);
+
+int set_panel_userptr(PANEL *pan, const void *ptr);
+const void *panel_userptr(const PANEL *pan);
+
+int del_panel(PANEL *pan);
+
+/* ncurses-extensions */
+PANEL *ground_panel(SCREEN *sp);
+PANEL *ceiling_panel(SCREEN *sp);
+```
+
+## resizeterm
+
+```c
+#include <curses.h>
+
+bool is_term_resized(int lines, int columns);
+int resize_term(int lines, int columns);
+int resizeterm(int lines, int columns);
+```
+
+## term_variables
+
+```c
+#include <curses.h>
+#include <term.h>
+
+chtype acs_map[];
+
+SCREEN * SP;
+
+TERMINAL * cur_term;
+
+char ttytype[];
+
+NCURSES_CONST char * const boolcodes[];
+NCURSES_CONST char * const boolfnames[];
+NCURSES_CONST char * const boolnames[];
+
+NCURSES_CONST char * const numcodes[];
+NCURSES_CONST char * const numfnames[];
+NCURSES_CONST char * const numnames[];
+
+NCURSES_CONST char * const strcodes[];
+NCURSES_CONST char * const strfnames[];
+NCURSES_CONST char * const strnames[];
+```
+
+## wresize
+
+```c
+#include <curses.h>
+
+int wresize(WINDOW *win, int lines, int columns);
+```
